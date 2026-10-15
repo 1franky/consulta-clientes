@@ -2,7 +2,9 @@ package com.empresa.consulta;
 
 import com.empresa.consulta.Config.ConexionDb;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -16,11 +18,17 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class VentanaPrincipal extends JFrame {
+
+    private static final int ALTO_LOGO = 48;
 
     private final List<ConexionDb> conexiones;
     private final List<JTable> tablas = new ArrayList<>();
@@ -34,10 +42,14 @@ public class VentanaPrincipal extends JFrame {
         super("Consulta de clientes");
         this.conexiones = config.conexiones();
 
-        JPanel arriba = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
-        arriba.add(new JLabel("Número de cliente:"));
-        arriba.add(txtCliente);
-        arriba.add(btnConsultar);
+        JPanel formulario = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
+        formulario.add(new JLabel("Número de cliente:"));
+        formulario.add(txtCliente);
+        formulario.add(btnConsultar);
+
+        JPanel arriba = new JPanel(new BorderLayout());
+        arriba.add(formulario, BorderLayout.CENTER);
+        cargarLogo(config.logo(), arriba);
 
         for (ConexionDb db : conexiones) {
             JTable tabla = new JTable(ConsultaService.modeloSoloLectura(new Object[0]));
@@ -60,6 +72,27 @@ public class VentanaPrincipal extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(700, 450));
         setLocationRelativeTo(null);
+    }
+
+    /** Muestra el logo arriba a la izquierda y lo usa como ícono de la ventana. */
+    private void cargarLogo(Path ruta, JPanel arriba) {
+        if (ruta == null) {
+            return;
+        }
+        try {
+            BufferedImage imagen = ImageIO.read(ruta.toFile());
+            if (imagen == null) {
+                return; // formato no soportado
+            }
+            int ancho = imagen.getWidth() * ALTO_LOGO / imagen.getHeight();
+            Image escalada = imagen.getScaledInstance(ancho, ALTO_LOGO, Image.SCALE_SMOOTH);
+            JLabel lblLogo = new JLabel(new ImageIcon(escalada));
+            lblLogo.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 4));
+            arriba.add(lblLogo, BorderLayout.WEST);
+            setIconImage(imagen);
+        } catch (IOException e) {
+            // Sin logo: la aplicación sigue funcionando igual
+        }
     }
 
     private void consultar() {

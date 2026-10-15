@@ -75,6 +75,16 @@ public final class Config {
         return lista;
     }
 
+    /**
+     * Logo opcional, ubicado en la misma carpeta que config.properties.
+     * Devuelve null si no existe para que la ventana se muestre sin logo.
+     */
+    public Path logo() {
+        String nombre = props.getProperty("logo.archivo", "logo.png").trim();
+        Path ruta = origen.toAbsolutePath().getParent().resolve(nombre);
+        return Files.isRegularFile(ruta) ? ruta : null;
+    }
+
     private String requerido(String clave) {
         String valor = props.getProperty(clave);
         if (valor == null || valor.isBlank()) {

@@ -72,6 +72,7 @@ copy config\config.properties target\installer\ConsultaClientes\
 target\installer\ConsultaClientes\
 ├── ConsultaClientes.exe      ← lo que abre el usuario
 ├── config.properties         ← credenciales (editable)
+├── logo.png                  ← logo (opcional)
 ├── app\                      ← jar de la aplicación
 └── runtime\                  ← Java embebido
 ```
@@ -117,6 +118,16 @@ Notas:
 - En este archivo la barra invertida se escribe doble. Para una instancia con nombre de SQL Server: `jdbc:sqlserver://servidor\\INSTANCIA;databaseName=MiBase;...`
 - `trustServerCertificate=true` evita errores con certificados autofirmados en SQL Server.
 - **No subir credenciales reales al repositorio.** Editar `config.properties` solo en la carpeta distribuida.
+
+### Logo
+
+La ventana muestra un logo opcional arriba a la izquierda, que también se usa como ícono de la ventana.
+
+1. Copiar el logo oficial en `config\logo.png` (PNG o JPG; se escala a 48 px de alto).
+2. Ejecutar `build.bat`, que lo copia junto al `.exe`.
+
+El logo **no se versiona** (`config/logo.png` está en `.gitignore`) porque es una marca registrada y este repositorio es público. Usar el archivo oficial que proporcione el área de comunicación o marca.
+Para cambiarlo después basta con reemplazar `logo.png` en la carpeta distribuida; no hace falta recompilar.
 
 ### Seguridad
 

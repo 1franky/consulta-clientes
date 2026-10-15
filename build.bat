@@ -28,6 +28,11 @@ if errorlevel 1 goto error
 echo [3/3] Copiando config.properties junto al .exe...
 copy /Y config\config.properties %SALIDA%\%APP_NAME%\ >nul
 if errorlevel 1 goto error
+if exist config\logo.png (
+  copy /Y config\logo.png %SALIDA%\%APP_NAME%\ >nul
+) else (
+  echo     Aviso: no hay config\logo.png, la app se mostrara sin logo.
+)
 
 echo.
 echo Listo: %SALIDA%\%APP_NAME%\%APP_NAME%.exe
