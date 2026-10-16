@@ -21,6 +21,7 @@ import java.awt.FlowLayout;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +51,7 @@ public class VentanaPrincipal extends JFrame {
         JPanel arriba = new JPanel(new BorderLayout());
         arriba.add(formulario, BorderLayout.CENTER);
         cargarLogo(config.logo(), arriba);
+        cargarIcono();
 
         for (ConexionDb db : conexiones) {
             JTable tabla = new JTable(ConsultaService.modeloSoloLectura(new Object[0]));
@@ -74,7 +76,15 @@ public class VentanaPrincipal extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    /** Muestra el logo arriba a la izquierda y lo usa como ícono de la ventana. */
+    /** Ícono de la ventana y la barra de tareas, incluido dentro del jar. */
+    private void cargarIcono() {
+        URL recurso = getClass().getResource("/icono.png");
+        if (recurso != null) {
+            setIconImage(new ImageIcon(recurso).getImage());
+        }
+    }
+
+    /** Muestra el logo arriba a la izquierda. */
     private void cargarLogo(Path ruta, JPanel arriba) {
         if (ruta == null) {
             return;
@@ -89,7 +99,6 @@ public class VentanaPrincipal extends JFrame {
             JLabel lblLogo = new JLabel(new ImageIcon(escalada));
             lblLogo.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 4));
             arriba.add(lblLogo, BorderLayout.WEST);
-            setIconImage(imagen);
         } catch (IOException e) {
             // Sin logo: la aplicación sigue funcionando igual
         }

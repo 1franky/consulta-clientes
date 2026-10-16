@@ -22,6 +22,7 @@ jpackage ^
   --input target\dist ^
   --main-jar consulta-clientes.jar ^
   --main-class com.empresa.consulta.App ^
+  --icon packaging\icono.ico ^
   --dest %SALIDA%
 if errorlevel 1 goto error
 

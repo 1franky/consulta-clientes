@@ -6,7 +6,3 @@ target/
 .settings/
 .project
 .classpath
-
-# Logo con marca registrada: no se publica en el repositorio
-config/logo.png
-config/logo.jpg

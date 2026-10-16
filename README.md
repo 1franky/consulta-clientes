@@ -33,6 +33,9 @@ consulta-clientes/
 ├── pom.xml                      ← dependencias (drivers JDBC + FlatLaf)
 ├── build.bat                    ← compila y genera el .exe
 ├── config/config.properties     ← plantilla de configuración
+├── config/logo.png              ← logo de la ventana (externo, editable)
+├── packaging/icono.ico          ← ícono del .exe
+├── src/main/resources/icono.png ← ícono de la ventana
 └── src/main/java/com/empresa/consulta/
     ├── App.java                 ← punto de entrada
     ├── Config.java              ← lee el config externo
@@ -61,7 +64,10 @@ mvn clean package
 
 jpackage --type app-image --name ConsultaClientes --app-version 1.0.0 ^
   --input target\dist --main-jar consulta-clientes.jar ^
-  --main-class com.empresa.consulta.App --dest target\installer
+  --main-class com.empresa.consulta.App --icon packaging\icono.ico ^
+  --dest target\installer
+
+copy config\logo.png target\installer\ConsultaClientes\
 
 copy config\config.properties target\installer\ConsultaClientes\
 ```
@@ -119,15 +125,15 @@ Notas:
 - `trustServerCertificate=true` evita errores con certificados autofirmados en SQL Server.
 - **No subir credenciales reales al repositorio.** Editar `config.properties` solo en la carpeta distribuida.
 
-### Logo
+### Logo e ícono
 
-La ventana muestra un logo opcional arriba a la izquierda, que también se usa como ícono de la ventana.
+| Archivo | Uso | ¿Requiere recompilar? |
+|---|---|---|
+| `config/logo.png` | Logo arriba a la izquierda de la ventana (PNG con fondo transparente, se escala a 48 px de alto). `build.bat` lo copia junto al `.exe`. | No: basta con reemplazar `logo.png` en la carpeta distribuida. |
+| `packaging/icono.ico` | Ícono del `.exe` en el Explorador de Windows (`jpackage --icon`). | Sí |
+| `src/main/resources/icono.png` | Ícono de la ventana y de la barra de tareas (va dentro del jar). | Sí |
 
-1. Copiar el logo oficial en `config\logo.png` (PNG o JPG; se escala a 48 px de alto).
-2. Ejecutar `build.bat`, que lo copia junto al `.exe`.
-
-El logo **no se versiona** (`config/logo.png` está en `.gitignore`) porque es una marca registrada y este repositorio es público. Usar el archivo oficial que proporcione el área de comunicación o marca.
-Para cambiarlo después basta con reemplazar `logo.png` en la carpeta distribuida; no hace falta recompilar.
+Si `logo.png` no existe, la ventana se muestra sin logo.
 
 ### Seguridad
 
