@@ -2,8 +2,9 @@
 setlocal
 
 REM === Ajusta esta ruta a tu JDK 21 (jpackage no existe en Java 11) ===
-set "JAVA_HOME=C:\Program Files\Java\jdk-21"
-set "PATH=%JAVA_HOME%\bin;%PATH%"
+Set-Alias -Name java -Value "C:\Users\nem.miztli\java\jdk-21\bin\java.exe"
+Set-Alias -Name javac -Value "C:\Users\nem.miztli\java\jdk-21\bin\javac.exe"
+Set-Alias -Name mvn -Value "C:\Users\nem.miztli\java\apache-maven-3.9.16\bin\mvn.cmd"
 
 set APP_NAME=ConsultaClientes
 set APP_VERSION=1.0.0
