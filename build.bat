@@ -15,7 +15,7 @@ call mvn -q clean package
 if errorlevel 1 goto error
 
 echo [2/3] Generando ejecutable con jpackage...
-call jpackage --type app-image --name ConsultaClientes --app-version 1.0.0 --input target\dist --main-jar consulta-clientes.jar --main-class com.empresa.consulta.App --dest target\installer
+call jpackage --type app-image --name ConsultaClientes --app-version 1.0.0 --input target\dist --main-jar consulta-clientes.jar --main-class com.empresa.consulta.App --icon packaging\icono.ico --dest target\installer
 if errorlevel 1 goto error
 
 echo [3/3] Copiando config.properties junto al .exe...
