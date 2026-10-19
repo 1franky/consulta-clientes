@@ -1,6 +1,6 @@
 # Consulta de Clientes
 
-Aplicación de escritorio (Java 21 + Swing) que consulta un número de cliente en **PostgreSQL** y **SQL Server** al mismo tiempo y muestra los resultados en dos pestañas.
+Aplicación de escritorio (Java 21 + Swing) que consulta un número de cliente en la base **Carteras** de **SQL Server** y muestra el resultado en una tabla.
 
 Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no necesita instalar nada.
 Las credenciales y las consultas SQL están en `config.properties`, **fuera del ejecutable**.
@@ -30,7 +30,7 @@ Las credenciales y las consultas SQL están en `config.properties`, **fuera del 
 
 ```
 consulta-clientes/
-├── pom.xml                      ← dependencias (drivers JDBC + FlatLaf)
+├── pom.xml                      ← dependencias (driver JDBC de SQL Server + FlatLaf)
 ├── build.bat                    ← compila y genera el .exe
 ├── config/config.properties     ← plantilla de configuración
 ├── config/logo.png              ← logo de la ventana (externo, editable)
@@ -99,17 +99,11 @@ Con `config.properties` en la carpeta desde donde se ejecuta el comando.
 ## Configuración (`config.properties`)
 
 ```properties
-postgres.nombre=PostgreSQL
-postgres.url=jdbc:postgresql://servidor-pg:5432/mi_base
-postgres.usuario=usuario_lectura
-postgres.password=cambiar_esto
-postgres.consulta=SELECT * FROM clientes WHERE numero_cliente = ?
-
-sqlserver.nombre=SQL Server
-sqlserver.url=jdbc:sqlserver://servidor-sql:1433;databaseName=MiBase;encrypt=true;trustServerCertificate=true
+sqlserver.nombre=Carteras
+sqlserver.url=jdbc:sqlserver://servidor-sql:1433;databaseName=Carteras;encrypt=true;trustServerCertificate=true
 sqlserver.usuario=usuario_lectura
 sqlserver.password=cambiar_esto
-sqlserver.consulta=SELECT * FROM dbo.Clientes WHERE NumeroCliente = ?
+sqlserver.consulta=SELECT * FROM dbo.maeDirectorio WHERE NumeroCliente = ?
 ```
 
 El archivo se busca en este orden:
@@ -120,8 +114,8 @@ El archivo se busca en este orden:
 
 Notas:
 
-- Cada consulta debe tener **un solo `?`**, que se reemplaza por el número de cliente como valor numérico. Si la columna es de texto en PostgreSQL, usar `WHERE numero_cliente = CAST(? AS VARCHAR)`.
-- En este archivo la barra invertida se escribe doble. Para una instancia con nombre de SQL Server: `jdbc:sqlserver://servidor\\INSTANCIA;databaseName=MiBase;...`
+- La consulta debe tener **un solo `?`**, que se reemplaza por el número de cliente como valor numérico.
+- En este archivo la barra invertida se escribe doble. Para una instancia con nombre de SQL Server: `jdbc:sqlserver://servidor\\INSTANCIA;databaseName=Carteras;...`
 - `trustServerCertificate=true` evita errores con certificados autofirmados en SQL Server.
 - **No subir credenciales reales al repositorio.** Editar `config.properties` solo en la carpeta distribuida.
 
@@ -137,7 +131,7 @@ Si `logo.png` no existe, la ventana se muestra sin logo.
 
 ### Seguridad
 
-- La contraseña queda en texto plano: usar **usuarios de solo lectura** en ambas bases.
+- La contraseña queda en texto plano: usar un **usuario de solo lectura**.
 - La conexión se abre en modo `readOnly`.
 - Límites: 10 s para conectar, 30 s por consulta y un máximo de 1000 filas (configurables en `ConsultaService.java`).
 

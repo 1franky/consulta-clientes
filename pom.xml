@@ -16,12 +16,6 @@
     </properties>
 
     <dependencies>
-        <!-- Driver PostgreSQL (100% Java) -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.4</version>
-        </dependency>
         <!-- Driver SQL Server (100% Java) -->
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
@@ -71,7 +65,7 @@
                                 </filter>
                             </filters>
                             <transformers>
-                                <!-- Necesario para que ambos drivers JDBC se registren -->
+                                <!-- Necesario para que el driver JDBC se registre -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${main.class}</mainClass>

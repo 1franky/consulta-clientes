@@ -22,7 +22,7 @@ public final class Config {
     static final String NOMBRE_ARCHIVO = "config.properties";
 
     /** Prefijos de las bases definidas en el archivo de configuración. */
-    private static final String[] BASES = {"postgres", "sqlserver"};
+    private static final String[] BASES = {"sqlserver"};
 
     private final Properties props;
     private final Path origen;
