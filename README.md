@@ -39,6 +39,7 @@ consulta-clientes/
 └── src/main/java/com/empresa/consulta/
     ├── App.java                 ← punto de entrada
     ├── Config.java              ← lee el config externo
+    ├── Log.java                 ← configura los archivos .log
     ├── ConsultaService.java     ← acceso JDBC
     └── VentanaPrincipal.java    ← ventana Swing
 ```
@@ -79,6 +80,7 @@ target\installer\ConsultaClientes\
 ├── ConsultaClientes.exe      ← lo que abre el usuario
 ├── config.properties         ← credenciales (editable)
 ├── logo.png                  ← logo (opcional)
+├── logs\                     ← se crea al abrir la app
 ├── app\                      ← jar de la aplicación
 └── runtime\                  ← Java embebido
 ```
@@ -128,6 +130,24 @@ Notas:
 | `src/main/resources/icono.png` | Ícono de la ventana y de la barra de tareas (va dentro del jar). | Sí |
 
 Si `logo.png` no existe, la ventana se muestra sin logo.
+
+### Logs
+
+La aplicación guarda un registro en `logs\consulta-clientes-0.log`, junto al `.exe` (o en la carpeta de trabajo al ejecutar el jar).
+Si esa carpeta no tiene permisos de escritura, usa `%USERPROFILE%\.consulta-clientes\logs`.
+
+Además se genera `logs\errores-0.log`, que contiene **solo advertencias y errores** (con el detalle completo de la excepción), para revisar fallos sin leer todo el registro.
+
+- Se registra: inicio de la app, ruta del `config.properties` usado, cada consulta (base, número de cliente, filas y tiempo) y los errores con su detalle completo.
+- **Nunca** se registra la contraseña.
+- Los archivos rotan al llegar a 5 MB y se guardan hasta 5 de cada tipo (`-0.log` es el más reciente). Los cambios en tamaño y cantidad se hacen en `Log.java`.
+
+Ejemplo:
+
+```
+2026-10-19 14:03:21.512 INFO    [ConsultaService] [Carteras] Consultando cliente 12345
+2026-10-19 14:03:21.840 INFO    [ConsultaService] [Carteras] Cliente 12345: 3 fila(s) en 328 ms
+```
 
 ### Seguridad
 

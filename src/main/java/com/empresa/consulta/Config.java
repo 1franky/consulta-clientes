@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -18,6 +19,8 @@ import java.util.stream.Collectors;
  *  3. Carpeta de trabajo actual (útil al ejecutar el jar en desarrollo)
  */
 public final class Config {
+
+    private static final Logger LOG = Logger.getLogger(Config.class.getName());
 
     static final String NOMBRE_ARCHIVO = "config.properties";
 
@@ -40,6 +43,7 @@ public final class Config {
                 try (Reader r = Files.newBufferedReader(ruta, StandardCharsets.UTF_8)) {
                     p.load(r);
                 }
+                LOG.info("Configuración cargada desde " + ruta.toAbsolutePath());
                 return new Config(p, ruta);
             }
         }

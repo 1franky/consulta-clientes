@@ -23,11 +23,16 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class VentanaPrincipal extends JFrame {
+
+    private static final Logger LOG = Logger.getLogger(VentanaPrincipal.class.getName());
 
     private static final int ALTO_LOGO = 48;
 
@@ -92,7 +97,8 @@ public class VentanaPrincipal extends JFrame {
         try {
             BufferedImage imagen = ImageIO.read(ruta.toFile());
             if (imagen == null) {
-                return; // formato no soportado
+                LOG.warning("Formato de logo no soportado: " + ruta);
+                return;
             }
             int ancho = imagen.getWidth() * ALTO_LOGO / imagen.getHeight();
             Image escalada = imagen.getScaledInstance(ancho, ALTO_LOGO, Image.SCALE_SMOOTH);
@@ -101,6 +107,7 @@ public class VentanaPrincipal extends JFrame {
             arriba.add(lblLogo, BorderLayout.WEST);
         } catch (IOException e) {
             // Sin logo: la aplicación sigue funcionando igual
+            LOG.log(Level.WARNING, "No se pudo leer el logo " + ruta, e);
         }
     }
 
@@ -113,6 +120,7 @@ public class VentanaPrincipal extends JFrame {
             }
             numeroCliente = Long.parseLong(texto);
         } catch (NumberFormatException e) {
+            LOG.info("Número de cliente inválido: \"" + texto + "\"");
             lblEstado.setText("Ingresa un número de cliente válido (solo dígitos).");
             txtCliente.requestFocus();
             return;
@@ -144,8 +152,11 @@ public class VentanaPrincipal extends JFrame {
                 try {
                     modelo = get();
                     titulo = db.nombre() + " (" + modelo.getRowCount() + ")";
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (InterruptedException | ExecutionException | RuntimeException e) {
                     Throwable causa = e.getCause() != null ? e.getCause() : e;
+                    if (!(causa instanceof SQLException)) { // los SQLException ya se registran en ConsultaService
+                        LOG.log(Level.SEVERE, "[" + db.nombre() + "] Error inesperado", causa);
+                    }
                     modelo = ConsultaService.modeloSoloLectura(new Object[]{"Error"});
                     modelo.addRow(new Object[]{causa.getMessage()});
                     titulo = db.nombre() + " (error)";
