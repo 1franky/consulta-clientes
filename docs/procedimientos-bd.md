@@ -1,7 +1,8 @@
 # Procedimientos de la base Carteras
 
 El validador obtiene los listados con los mismos procedimientos que usa *VbnListadoCarteras*. Cada uno se configura
-en `config.properties` (`sp.<clave>`); `:cliente` se reemplaza por el número de cliente y `:corte` por la fecha de
+en `src/main/resources/procedimientos.properties` (`sp.<clave>`), y `config.properties` puede redefinir cualquiera con la
+misma clave sin recompilar; `:cliente` se reemplaza por el número de cliente y `:corte` por la fecha de
 corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 
 ## Resumen
@@ -82,9 +83,12 @@ Notas:
 Se probó contra un SQL Server de laboratorio en Docker con el esquema completo de Carteras y datos parciales. Ahí:
 
 - Dos clientes de las muestras reproducen el estado de cuenta impreso renglón por renglón.
-- `spcQCDineroElectronico` no genera `tmpDineroElectronico3`, porque el flag de configuración 7
-  (`fun_ObtenerConfiguracionFlag(7)`) está en NULL: el procedimiento solo crea la tabla si vale 0 o 1. Con el
-  `IF OBJECT_ID(...)` el validador lo toma como "sin dinero electrónico" en vez de marcar error.
+- `spcQCDineroElectronico` solo genera `tmpDineroElectronico3` si `fun_ObtenerConfiguracionFlag(7)` vale 0 o 1, y
+  la función lo lee de `CatFlag`, que llegó vacía. En el laboratorio se agregó `FlagKey = 7, OpcFlag = 0` (lee
+  `MaeCarteraDineroElectronico`). Sin ese renglón, el `IF OBJECT_ID(...)` hace que el validador lo tome como
+  "sin dinero electrónico" en vez de marcar error.
+- Las tablas de leyendas (`catLeyendasCorreos`, `catLeyendasSupervisor`, `catleyendasemision`,
+  `equivalenciasleyendas`...) llegaron vacías; ver [pendientes.md](pendientes.md).
 - `cat_bonificacionescarteras` está vacía, así que los procedimientos devuelven bonificación 0 en muebles y ropa.
   El validador no depende de ese valor (ver [bonificaciones.md](bonificaciones.md)).
 

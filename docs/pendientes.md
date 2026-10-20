@@ -9,7 +9,7 @@
 | Citatorio (CIT) [18] | El validador lo calcula según el manual, pero ninguna muestra del formato 2026 lo imprime. Confirmar si sigue vigente. |
 | Cadena de cobranza | El manual menciona el año de nacimiento, pero las muestras no lo imprimen. |
 | Situación especial | Solo se imprime I35 en las muestras (I23, I41 y S50 no). Falta la lista completa de las que se imprimen (`SITUACIONES_IMPRESAS` en `CalculadoraEstadoCuenta`). |
-| Aviso importante | Las leyendas salen de 12 muestras (puntualidad Z, marcas 3MSC/NCE, puntualidad A). Los catálogos de leyendas de la base de laboratorio están vacíos. Falta la regla para B/C/D sin marca y para NTE. |
+| Aviso importante | Las leyendas salen de 12 muestras (puntualidad Z, marcas 3MSC/NCE, puntualidad A). El catálogo de la emisión es `catLeyendasCorreos` (`PuntualidadCliente`, `AbonosMesesVencidos`, `Leyenda1`, `Leyenda2`, `ClaveLeyenda`), pero en la base de laboratorio está vacío. Pedir `SELECT * FROM dbo.catLeyendasCorreos` a producción para confirmar las reglas y cubrir B/C/D sin marca y NTE. |
 | Teléfono en el complemento | Una muestra omite un teléfono de 10 dígitos capturado en el complemento; se generalizó a todos. |
 | Domiciliado [21] y domicilio certificado | No se identificaron las columnas de origen. |
 | Asteriscos [16] | La regla 3* del manual es ambigua ("atraso ≥ 50% del abono base y ≤ 75% dos abonos base"). Se interpretó como 50% de un abono a 75% de dos abonos. |
@@ -21,8 +21,9 @@
    y usar el CSV solo si la tabla está vacía o no hay conexión. Evita tener dos copias del catálogo.
 2. **Avisar cuando no coincidan:** si la bonificación del validador difiere del `SaldaCon20SigMes` del procedimiento,
    mostrar una advertencia en el punto [7]. Solo tiene sentido contra producción.
-3. **Leyenda de mercadotecnia [17]:** hoy se captura a mano en `config.properties`. Podría leerse de la carpeta de
-   Leyendas de Mercadotecnia.
+3. **Leyenda de mercadotecnia [17]:** hoy se captura a mano en `config.properties`. No está en la base Carteras: el
+   manual dice que se toma de la carpeta `Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas
+   Mercadotecnia\<año>`. Podría leerse de ahí.
 4. **Listado de domiciliación [21]:** cotejar automáticamente contra el listado de clientes domiciliados.
 
 ## Riesgos conocidos

@@ -112,7 +112,7 @@ Resultado:
 ```
 target\installer\ValidadorEdoCta\
 ├── ValidadorEdoCta.exe      ← lo que abre el usuario
-├── config.properties        ← credenciales y procedimientos (editable)
+├── config.properties        ← credenciales y leyenda de mercadotecnia (editable)
 ├── bonificaciones.csv       ← catálogo de bonificaciones (editable, sin recompilar)
 ├── logo.png                 ← logo (opcional)
 ├── logs\                    ← se crea al abrir la app
@@ -139,19 +139,18 @@ modo=sqlserver
 sqlserver.url=jdbc:sqlserver://servidor-sql:1433;databaseName=Carteras;encrypt=true;trustServerCertificate=true
 sqlserver.usuario=usuario_lectura
 sqlserver.password=cambiar_esto
-
-# Procedimientos: :cliente = número de cliente, :corte = fecha de corte
-sp.directorio=EXEC dbo.spcQCDirectorio :cliente
-sp.muebles=EXEC dbo.spcQCMuebles :cliente
-...
-
-# Nombre real de una columna si no se encuentra sola
-columna.muebles.saldoFecha=imp_SaldoFecha
+leyenda.mercadotecnia=VIVE TU LOOK ESTA TEMPORADA ...
 ```
 
 El archivo se busca en: `-Dconfig=...`, la carpeta del `.exe` y la carpeta de trabajo.
 
+Claves opcionales, con su valor por omisión: `sqlserver.nombre=Carteras`, `logo.archivo=logo.png`,
+`bonificaciones.archivo=bonificaciones.csv`, `columna.<listado>.<campo>=` (ver Columnas) y `sp.<clave>=` (ver Procedimientos).
+
 ### Procedimientos
+
+Las sentencias van dentro del programa, en `src/main/resources/procedimientos.properties`. Para cambiar una sin
+recompilar, se escribe la misma clave en `config.properties`, que tiene prioridad.
 
 Todos reciben `@NumCte INT` (préstamos además `@iFechaConCorteAl20 BIT`, se manda 1). Algunos no devuelven filas:
 dejan el resultado en una tabla `tmp*` que se lee con un `SELECT` en la misma sentencia:
@@ -159,7 +158,7 @@ dejan el resultado en una tabla `tmp*` que se lee con un `SELECT` en la misma se
 | Clave | Sentencia |
 |---|---|
 | `sp.credito` | `EXEC dbo.spcQCCredito :cliente; SELECT * FROM dbo.tmpQCCredito01` |
-| `sp.dineroElectronico` | `EXEC dbo.spcQCDineroElectronico :cliente; SELECT * FROM dbo.tmpDineroElectronico3` |
+| `sp.dineroElectronico` | `EXEC dbo.spcQCDineroElectronico :cliente; IF OBJECT_ID('dbo.tmpDineroElectronico3') IS NOT NULL SELECT * FROM dbo.tmpDineroElectronico3` |
 | `sp.informativa` | `EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp` |
 | `sp.marcasContacto` | `EXEC dbo.proc_clientenocontactado :cliente; SELECT * FROM dbo.tmp_clientenocontactado` |
 

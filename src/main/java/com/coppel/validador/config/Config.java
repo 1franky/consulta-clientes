@@ -1,6 +1,8 @@
 package com.coppel.validador.config;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,12 +21,16 @@ import java.util.stream.Collectors;
  *  1. Ruta indicada con -Dconfig=C:\ruta\config.properties
  *  2. Carpeta donde está ValidadorEdoCta.exe
  *  3. Carpeta de trabajo actual (útil al ejecutar el jar en desarrollo)
+ *
+ * Las sentencias de los listados (sp.*) vienen en procedimientos.properties, dentro del jar;
+ * config.properties puede redefinir cualquiera con la misma clave.
  */
 public final class Config {
 
     private static final Logger LOG = Logger.getLogger(Config.class.getName());
 
     static final String NOMBRE_ARCHIVO = "config.properties";
+    private static final String PROCEDIMIENTOS = "/procedimientos.properties";
 
     private final Properties props;
     private final Path origen;
@@ -38,7 +44,7 @@ public final class Config {
         List<Path> candidatos = candidatos();
         for (Path ruta : candidatos) {
             if (Files.isRegularFile(ruta)) {
-                Properties p = new Properties();
+                Properties p = new Properties(procedimientos());
                 try (Reader r = Files.newBufferedReader(ruta, StandardCharsets.UTF_8)) {
                     p.load(r);
                 }
@@ -48,6 +54,18 @@ public final class Config {
         }
         String rutas = candidatos.stream().map(Path::toString).collect(Collectors.joining("\n  "));
         throw new IOException("No se encontró " + NOMBRE_ARCHIVO + ". Se buscó en:\n  " + rutas);
+    }
+
+    /** Sentencias por omisión incluidas en el programa. */
+    private static Properties procedimientos() throws IOException {
+        Properties p = new Properties();
+        try (InputStream in = Config.class.getResourceAsStream(PROCEDIMIENTOS)) {
+            if (in == null) {
+                throw new IOException("Falta " + PROCEDIMIENTOS + " dentro del programa");
+            }
+            p.load(new InputStreamReader(in, StandardCharsets.UTF_8));
+        }
+        return p;
     }
 
     private static List<Path> candidatos() {
@@ -76,7 +94,7 @@ public final class Config {
 
     public ConexionDb conexion() {
         return new ConexionDb(
-                props.getProperty("sqlserver.nombre", "sqlserver").trim(),
+                props.getProperty("sqlserver.nombre", "Carteras").trim(),
                 requerido("sqlserver.url"),
                 requerido("sqlserver.usuario"),
                 props.getProperty("sqlserver.password", ""));
