@@ -58,11 +58,11 @@ public class VentanaPrincipal extends JFrame {
     private final PanelListados panelListados = new PanelListados();
 
     public VentanaPrincipal(EstadoCuentaService service, CalculadoraEstadoCuenta calculadora,
-                            String leyendaMercadotecnia, Path logo) {
+                            Path logo) {
         super("Validador de estados de cuenta");
         this.service = service;
         this.calculadora = calculadora;
-        this.panelEstadoCuenta = new PanelEstadoCuenta(leyendaMercadotecnia);
+        this.panelEstadoCuenta = new PanelEstadoCuenta();
 
         txtCorte.setText(FECHA.format(corteSugerido(LocalDate.now())));
         txtCorte.setToolTipText("Fecha de corte (dd/mm/aaaa)");

@@ -36,13 +36,15 @@ public class PanelEstadoCuenta extends JPanel {
     }
 
     private final JEditorPane html = new JEditorPane("text/html", "");
-    private final String leyendaMercadotecnia;
     private ExpedienteCliente expediente;
     private EstadoCuentaEsperado esperado;
 
-    public PanelEstadoCuenta(String leyendaMercadotecnia) {
+    /** La leyenda de mercadotecnia [17] cambia cada mes y se valida contra la carpeta compartida. */
+    private static final String CARPETA_MERCADOTECNIA =
+            "\\Calidad Sist Carteras\\Productos Calidad\\México\\Especiales\\Leyendas Mercadotecnia\\<año>";
+
+    public PanelEstadoCuenta() {
         super(new BorderLayout());
-        this.leyendaMercadotecnia = leyendaMercadotecnia;
         html.setEditable(false);
         add(new JScrollPane(html), BorderLayout.CENTER);
         limpiar();
@@ -75,12 +77,12 @@ public class PanelEstadoCuenta extends JPanel {
             html.setText("<html><body style='font-family:sans-serif;padding:16px;color:" + p.tenue() + "'>"
                     + "Consulta un cliente para ver su estado de cuenta esperado.</body></html>");
         } else {
-            html.setText(armar(expediente, esperado, leyendaMercadotecnia, p));
+            html.setText(armar(expediente, esperado, p));
         }
         html.setCaretPosition(0);
     }
 
-    private static String armar(ExpedienteCliente exp, EstadoCuentaEsperado esp, String leyenda, Paleta p) {
+    private static String armar(ExpedienteCliente exp, EstadoCuentaEsperado esp, Paleta p) {
         Cliente c = exp.cliente();
         StringBuilder sb = new StringBuilder("<html><body style='font-family:sans-serif;font-size:10px;margin:8px;color:")
                 .append(p.texto()).append("'>");
@@ -184,9 +186,9 @@ public class PanelEstadoCuenta extends JPanel {
                 ? "<font color='" + p.tenue() + "'><i>(" + e(esp.explicacionAviso()) + ")</i></font>"
                 : e(esp.avisoImportante()));
         sb.append("</td><td valign='top' bgcolor='").append(p.gris()).append("'>")
-                .append(leyenda.isEmpty()
-                        ? "<font color='" + p.tenue() + "'><i>(capturar leyenda.mercadotecnia en config.properties)</i></font>"
-                        : e(leyenda))
+                .append("<font color='").append(p.tenue()).append("'><i>Leyenda de mercadotecnia: se valida contra ")
+                .append("la carpeta compartida ").append(e(CARPETA_MERCADOTECNIA))
+                .append(" (las capturadas del 16 al 20 del mes).</i></font>")
                 .append("<br><br>Dudas o comentarios llama al Centro de Atención al Cliente:800 220 7735</td></tr></table>");
 
         // Lo que no se imprime pero ayuda a revisar

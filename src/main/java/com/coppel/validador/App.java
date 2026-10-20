@@ -42,7 +42,7 @@ public class App {
                 CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(CatalogoBonificaciones.cargar(config.bonificaciones()));
                 LOG.info("Origen de datos: " + service.origen());
 
-                new VentanaPrincipal(service, calculadora, config.leyendaMercadotecnia(), config.logo())
+                new VentanaPrincipal(service, calculadora, config.logo())
                         .setVisible(true);
             } catch (Exception e) {
                 LOG.log(Level.SEVERE, "Error al iniciar la aplicación", e);

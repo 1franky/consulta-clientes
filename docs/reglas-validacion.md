@@ -96,7 +96,7 @@ Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificac
 | [24] Monedas | Número de abonos puntuales (`Desc_Corte` = "Corte N"). |
 | Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`. |
 | Marca de contacto | `3MSC`, `NTE` o `NCE` según las banderas de `tmp_clientenocontactado`. |
-| [17] Leyenda de mercadotecnia | `leyenda.mercadotecnia` de `config.properties`; se captura cada mes. |
+| [17] Leyenda de mercadotecnia | Se valida contra la carpeta compartida `\Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas Mercadotecnia\<año>` (las capturadas del 16 al 20); el validador solo lo indica. |
 | [14], [23], [25] | Revisión visual: teléfono de tienda, número de página y código QR. |
 
 ## Alertas

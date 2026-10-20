@@ -127,11 +127,6 @@ public final class Config {
         return ruta.isAbsolute() ? ruta : origen.toAbsolutePath().getParent().resolve(ruta);
     }
 
-    /** Leyenda de mercadotecnia del mes [17]; vacía si no se configuró. */
-    public String leyendaMercadotecnia() {
-        return props.getProperty("leyenda.mercadotecnia", "").trim();
-    }
-
     /**
      * Logo opcional, ubicado en la misma carpeta que config.properties.
      * Devuelve null si no existe para que la ventana se muestre sin logo.

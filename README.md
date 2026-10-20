@@ -32,7 +32,8 @@ Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no
 6. Botón **Modo oscuro / Modo claro** (arriba a la derecha): cambia los colores al momento. La elección se
    recuerda por usuario de Windows.
 
-Cada mes hay que capturar la **leyenda de mercadotecnia** en `config.properties` (`leyenda.mercadotecnia=`).
+La **leyenda de mercadotecnia** no se calcula: se valida contra la carpeta compartida
+`\Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas Mercadotecnia\<año>` (las capturadas del 16 al 20).
 
 ---
 
@@ -112,7 +113,7 @@ Resultado:
 ```
 target\installer\ValidadorEdoCta\
 ├── ValidadorEdoCta.exe      ← lo que abre el usuario
-├── config.properties        ← credenciales y leyenda de mercadotecnia (editable)
+├── config.properties        ← modo y credenciales (editable)
 ├── bonificaciones.csv       ← catálogo de bonificaciones (editable, sin recompilar)
 ├── logo.png                 ← logo (opcional)
 ├── logs\                    ← se crea al abrir la app
@@ -139,7 +140,6 @@ modo=sqlserver
 sqlserver.url=jdbc:sqlserver://servidor-sql:1433;databaseName=Carteras;encrypt=true;trustServerCertificate=true
 sqlserver.usuario=usuario_lectura
 sqlserver.password=cambiar_esto
-leyenda.mercadotecnia=VIVE TU LOOK ESTA TEMPORADA ...
 ```
 
 El archivo se busca en: `-Dconfig=...`, la carpeta del `.exe` y la carpeta de trabajo.

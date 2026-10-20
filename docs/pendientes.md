@@ -21,10 +21,7 @@
    y usar el CSV solo si la tabla está vacía o no hay conexión. Evita tener dos copias del catálogo.
 2. **Avisar cuando no coincidan:** si la bonificación del validador difiere del `SaldaCon20SigMes` del procedimiento,
    mostrar una advertencia en el punto [7]. Solo tiene sentido contra producción.
-3. **Leyenda de mercadotecnia [17]:** hoy se captura a mano en `config.properties`. No está en la base Carteras: el
-   manual dice que se toma de la carpeta `Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas
-   Mercadotecnia\<año>`. Podría leerse de ahí.
-4. **Listado de domiciliación [21]:** cotejar automáticamente contra el listado de clientes domiciliados.
+3. **Listado de domiciliación [21]:** cotejar automáticamente contra el listado de clientes domiciliados.
 
 ## Riesgos conocidos
 
