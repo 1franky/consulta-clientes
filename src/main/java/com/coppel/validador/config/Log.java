@@ -1,4 +1,4 @@
-package com.empresa.consulta;
+package com.coppel.validador.config;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -19,18 +19,18 @@ import java.util.logging.Logger;
 
 /**
  * Configura java.util.logging para escribir en archivos .log. Ubicación:
- *  1. Carpeta logs\ junto a ConsultaClientes.exe
+ *  1. Carpeta logs\ junto a ValidadorEdoCta.exe
  *  2. Carpeta logs\ en la carpeta de trabajo actual (desarrollo)
- *  3. Si no se puede escribir ahí: %USERPROFILE%\.consulta-clientes\logs
+ *  3. Si no se puede escribir ahí: %USERPROFILE%\.validador-edocta\logs
  *
  * Se generan dos archivos, que rotan al llegar a 5 MB y se guardan hasta 5 de cada uno
  * (el -0 es el más reciente):
- *  - consulta-clientes-0.log: todos los eventos
+ *  - validador-0.log: todos los eventos
  *  - errores-0.log: solo advertencias y errores, para revisarlos rápido
  */
 public final class Log {
 
-    private static final String NOMBRE_ARCHIVO = "consulta-clientes-%g.log";
+    private static final String NOMBRE_ARCHIVO = "validador-%g.log";
     private static final String NOMBRE_ERRORES = "errores-%g.log";
     private static final int TAMANO_MAXIMO = 5 * 1024 * 1024;
     private static final int CANTIDAD_ARCHIVOS = 5;
@@ -42,8 +42,8 @@ public final class Log {
 
     public static void iniciar() {
         Logger raiz = Logger.getLogger("");
-        for (Path candidata : new Path[]{carpetaAplicacion().resolve("logs"),
-                Paths.get(System.getProperty("user.home"), ".consulta-clientes", "logs")}) {
+        for (Path candidata : new Path[]{Config.carpetaAplicacion().resolve("logs"),
+                Paths.get(System.getProperty("user.home"), ".validador-edocta", "logs")}) {
             try {
                 Files.createDirectories(candidata);
                 FileHandler archivo = archivo(candidata.resolve(NOMBRE_ARCHIVO), Level.ALL);
@@ -86,15 +86,6 @@ public final class Log {
     /** Carpeta donde se guardan los logs, o null si no se pudo crear ninguna. */
     public static Path carpeta() {
         return carpeta;
-    }
-
-    private static Path carpetaAplicacion() {
-        // jpackage define esta propiedad con la ruta del .exe
-        String exe = System.getProperty("jpackage.app-path");
-        if (exe != null) {
-            return Paths.get(exe).toAbsolutePath().getParent();
-        }
-        return Paths.get(System.getProperty("user.dir"));
     }
 
     /** Una línea por evento: 2026-10-19 14:03:21.512 INFO    [ConsultaService] mensaje */

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compila y ejecuta la aplicación en macOS (para pruebas; el .exe se genera con build.bat en Windows).
+# Compila y ejecuta la aplicación en macOS/Linux (para pruebas; el .exe se genera con build.bat en Windows).
 # Uso:
 #   ./build.sh              compila y abre la aplicación
 #   ./build.sh --solo-jar   solo compila
@@ -12,8 +12,9 @@ SALIDA=target/dist
 echo "[1/3] Compilando con Maven..."
 mvn -q clean package
 
-echo "[2/3] Copiando config.properties junto al .jar..."
+echo "[2/3] Copiando config.properties y bonificaciones.csv junto al .jar..."
 cp config/config.properties "$SALIDA/"
+cp src/main/resources/bonificaciones.csv "$SALIDA/"
 if [ -f config/logo.png ]; then
   cp config/logo.png "$SALIDA/"
 else
@@ -21,7 +22,7 @@ else
 fi
 
 echo
-echo "Listo: $SALIDA/consulta-clientes.jar"
+echo "Listo: $SALIDA/validador-edocta.jar"
 
 if [ "${1:-}" = "--solo-jar" ]; then
   exit 0
@@ -30,4 +31,4 @@ fi
 echo "[3/3] Abriendo la aplicación..."
 # La app busca config.properties en la carpeta de trabajo actual
 cd "$SALIDA"
-java -jar consulta-clientes.jar
+java -jar validador-edocta.jar

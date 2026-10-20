@@ -6,7 +6,7 @@ set JAVA_HOME=C:\Users\nem.miztli\java\jdk-21
 set MAVEN_HOME=C:\Users\nem.miztli\java\apache-maven-3.9.16
 set PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%PATH%
 
-set APP_NAME=ConsultaClientes
+set APP_NAME=ValidadorEdoCta
 set APP_VERSION=1.0.0
 set SALIDA=target\installer
 
@@ -15,11 +15,13 @@ call mvn -q clean package
 if errorlevel 1 goto error
 
 echo [2/3] Generando ejecutable con jpackage...
-call jpackage --type app-image --name ConsultaClientes --app-version 1.0.0 --input target\dist --main-jar consulta-clientes.jar --main-class com.empresa.consulta.App --icon packaging\icono.ico --dest target\installer
+call jpackage --type app-image --name %APP_NAME% --app-version %APP_VERSION% --input target\dist --main-jar validador-edocta.jar --main-class com.coppel.validador.App --icon packaging\icono.ico --dest %SALIDA%
 if errorlevel 1 goto error
 
-echo [3/3] Copiando config.properties junto al .exe...
+echo [3/3] Copiando config.properties y bonificaciones.csv junto al .exe...
 copy /Y config\config.properties %SALIDA%\%APP_NAME%\ >nul
+if errorlevel 1 goto error
+copy /Y src\main\resources\bonificaciones.csv %SALIDA%\%APP_NAME%\ >nul
 if errorlevel 1 goto error
 if exist config\logo.png (
   copy /Y config\logo.png %SALIDA%\%APP_NAME%\ >nul

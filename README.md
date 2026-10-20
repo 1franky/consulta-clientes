@@ -1,19 +1,104 @@
-# Consulta de Clientes
+# Validador de estados de cuenta
 
-Aplicación de escritorio (Java 21 + Swing) que consulta un número de cliente en la base **Carteras** de **SQL Server** y muestra el resultado en una tabla.
+Aplicación de escritorio (Java 21 + Swing) para que Control de Calidad valide las muestras impresas
+del **Estado de Cuenta Correos** contra los listados de la base **Carteras** (SQL Server), siguiendo el
+manual *"1. Estado de Cuenta Correos"*.
+
+La validación la hace una persona: el sistema muestra la muestra escaneada junto al estado de cuenta
+**esperado** (calculado con las reglas del manual) y una lista de puntos a corroborar. La persona marca
+cada punto como Correcto / Error / No aplica y el resultado se guarda en un CSV.
 
 Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no necesita instalar nada.
-Las credenciales y las consultas SQL están en `config.properties`, **fuera del ejecutable**.
+
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| [docs/reglas-validacion.md](docs/reglas-validacion.md) | Cómo se calcula cada dato del estado de cuenta y de dónde sale |
+| [docs/procedimientos-bd.md](docs/procedimientos-bd.md) | Procedimientos de Carteras: parámetros, columnas, tablas `tmp*` y permisos |
+| [docs/bonificaciones.md](docs/bonificaciones.md) | Cálculo de bonificaciones y cómo actualizar `bonificaciones.csv` |
+| [docs/pendientes.md](docs/pendientes.md) | Reglas por confirmar, mejoras propuestas y riesgos |
 
 ---
 
-## Para usuarios (operaciones)
+## Para usuarios (Control de Calidad)
 
-1. Descomprimir el `.zip` en cualquier carpeta (por ejemplo `C:\Herramientas\ConsultaClientes`).
-2. Abrir `ConsultaClientes.exe`.
-3. Escribir el número de cliente y pulsar **Consultar** (o Enter).
+1. Abrir `ValidadorEdoCta.exe`.
+2. **Abrir muestra...** y elegir el PDF escaneado (o una imagen). Se ve a la izquierda; con ◀ ▶ se cambia de página y con − + el zoom.
+3. Escribir el **número de cliente**, revisar la **fecha de corte** (por omisión el último día 20) y pulsar **Consultar**.
+4. Pestaña **Estado de cuenta esperado**: cómo debería verse el impreso, con el cálculo de bonificaciones.
+   Los recuadros rojos son alertas (por ejemplo, una situación especial a la que no se le genera estado de cuenta).
+5. Pestaña **Puntos a revisar**: comparar cada valor esperado contra la muestra.
+   - Atajos sobre la fila: `1` = Correcto, `2` = Error, `3` = No aplica (pasa a la siguiente fila).
+   - Abajo se ve de dónde sale cada valor esperado.
+   - Los puntos en cursiva son solo visuales (QR, número de página...).
+6. **Guardar validación**. Exige que no queden pendientes y que cada Error tenga observación.
+   El dictamen es **APROBADO** si no hay errores y **RECHAZADO** si hay al menos uno.
+7. Pestaña **Listados**: lo que devolvió cada procedimiento, sin interpretar, y los avisos de la consulta.
+8. Botón **Modo oscuro / Modo claro** (arriba a la derecha): cambia los colores al momento. La elección se
+   recuerda por usuario de Windows.
 
-> No mover el `.exe` fuera de su carpeta: necesita las carpetas `app\` y `runtime\` y el archivo `config.properties` a su lado.
+Los resultados se guardan en `validaciones\validaciones-AAAA-MM.csv` (se abre en Excel): una fila por punto con
+fecha, usuario de Windows, cliente, corte, muestra, dictamen, resultado y observación.
+
+---
+
+## Arquitectura
+
+Un solo jar (monolito) con capas separadas por paquete, al estilo Spring pero sin Spring: `App` crea los objetos
+y los conecta (inyección de dependencias manual).
+
+```
+com.coppel.validador
+├── App.java                         ← punto de entrada y "contenedor": arma service, reglas y pantalla
+├── config/                          ← config.properties y logs
+├── model/                           ← datos: Cliente, Cuenta, ExpedienteCliente, TablaListado
+├── service/                         ← TODO el acceso a la base de datos
+│   ├── EstadoCuentaService          ← interfaz que usa la pantalla
+│   ├── SqlServerEstadoCuentaService ← ejecuta los procedimientos y mapea columnas → modelo
+│   ├── DemoEstadoCuentaService      ← datos de ejemplo sin BD (modo=demo)
+│   ├── Registro                     ← búsqueda tolerante de columnas
+│   └── BitacoraValidacionService    ← guarda los resultados en CSV
+├── validacion/                      ← reglas del manual, sin BD ni pantallas (se prueban con JUnit)
+│   ├── CalculadoraEstadoCuenta      ← estado de cuenta esperado: [5]–[24]
+│   ├── CatalogoBonificaciones       ← factores de bonificación (bonificaciones.csv)
+│   ├── GeneradorPuntosRevision      ← lista de puntos a corroborar
+│   └── PuntoRevision, Formato, EstadoCuentaEsperado
+└── ui/                              ← solo Swing: no hace SQL ni cálculos
+    ├── VentanaPrincipal
+    ├── PanelMuestra                 ← visor del PDF escaneado (PDFBox)
+    ├── PanelEstadoCuenta            ← estado de cuenta esperado
+    ├── PanelPuntosRevision          ← checklist
+    ├── PanelListados                ← resultado crudo de los procedimientos
+    └── Tema                         ← modo claro / oscuro (FlatLaf)
+```
+
+Regla: `ui` solo habla con `service` (datos) y `validacion` (reglas). `validacion` no conoce ni la BD ni Swing.
+
+### Reglas implementadas (números del manual)
+
+| Punto | Regla |
+|---|---|
+| [2] | Solo incluye abonos hasta = fecha de corte |
+| [3] | Domicilio = calle # casa + depto. + rumbo + entre calles + complemento; colonia + municipio. Datos generales del directorio, cadena de cobranza (`AACPF0322` = puntualidad, puntualidad activa, estado civil, tipo de casa, sexo, ingreso, antigüedad), jefe de grupo, supervisor, centro (`5000-01`), zona (`100-0200`) |
+| [5] | Fecha de compra = fecha de venta (muebles) o fecha última compra (ropa) |
+| [6] | Usted debe = saldo a la fecha + interés adicional. Usted debía = saldo + int. adic. mes anterior + abonos − compras. Interés adicional del renglón = `NuevoInteresCargado` |
+| [7] | Páguelo con solo = usted debe − bonificación, con bonificación = round(Int. s/compra × factor), tope el saldo a la fecha (`fnGeSaldaCon`). Factor del catálogo por cartera, plazo, días = (corte + 1 mes) − fecha de compra y vigencia (`fec_iniciobloque`). Préstamos: base `InteresFinanciamiento`, factor nuevo desde 20-jun-2024. Ropa sin saldo hace ≤ 30 días (`fec_sinsaldo`): interés completo. Sin bonificación con atraso |
+| [8]–[10] | Abono mensual; atrasado = vencido + interés adicional (tope usted debe); pase a pagar = abono + atrasado (tope usted debe) |
+| [11] | Fecha de último abono = fec. ult. movto (vacía si el último movimiento fue la compra; `CP` en cuentas perdidas) |
+| [12]–[13] | Totales de todas las cuentas (se pintan hasta 5) |
+| [15] | INMEDIATO si puntualidad B, C, D, Z con vencido ≥ abono total, o A con vencido ≥ 2 abonos |
+| [16] | Asteriscos: `*` al corriente, `**` nuevo del mes, `***` A con atraso del 50% al 75% de dos abonos |
+| [18] | Citatorio CIT # 1/2/3/4/7 según abonos vencidos y puntualidad |
+| [19] | Tienda (4) + factura (6) `*` artículos de todas las cuentas menos ropa |
+| [20] | IR$ / IM$ / IB$ ... = suma de interés adicional por cartera |
+| [21]–[25] | Domiciliada, leyendas, página, monedas de abono puntual, QR (revisión visual) |
+| Alertas | Situación especial L, M, X, F, P23, P71–P74; `NoEnviarEdoCta` sin vencido; convenio de devolución; más de 5 cuentas |
+
+Las pruebas (`src/test`) comparan el cálculo contra lo **impreso** en `MUESTRAC COPPEL_VERACRUZ.pdf` para los
+dos clientes (con datos personales ficticios). Además se verificó contra una base Carteras de laboratorio: dos
+clientes de las muestras reproducen el impreso renglón por renglón (importes, totales, domicilio, cadena, zona,
+facturas e intereses).
 
 ---
 
@@ -23,141 +108,111 @@ Las credenciales y las consultas SQL están en `config.properties`, **fuera del 
 
 | Herramienta | Versión | Notas |
 |---|---|---|
-| JDK | **21** | Java 11 no sirve: `jpackage` existe desde Java 14. |
+| JDK | **21** | `jpackage` existe desde Java 14. |
 | Maven | 3.9+ | https://maven.apache.org/download.cgi — descomprimir y agregar `bin` al `PATH`. Verificar con `mvn -v`. |
-
-### Estructura
-
-```
-consulta-clientes/
-├── pom.xml                      ← dependencias (driver JDBC de SQL Server + FlatLaf)
-├── build.bat                    ← compila y genera el .exe
-├── config/config.properties     ← plantilla de configuración
-├── config/logo.png              ← logo de la ventana (externo, editable)
-├── packaging/icono.ico          ← ícono del .exe
-├── src/main/resources/icono.png ← ícono de la ventana
-└── src/main/java/com/empresa/consulta/
-    ├── App.java                 ← punto de entrada
-    ├── Config.java              ← lee el config externo
-    ├── Log.java                 ← configura los archivos .log
-    ├── ConsultaService.java     ← acceso JDBC
-    └── VentanaPrincipal.java    ← ventana Swing
-```
 
 ### Compilar y generar el .exe (Windows)
 
-1. Editar la línea de `JAVA_HOME` en `build.bat` con la ruta de tu JDK 21, por ejemplo:
-   ```bat
-   set "JAVA_HOME=C:\Program Files\Java\jdk-21"
-   ```
-2. En `cmd`, desde la carpeta del proyecto:
-   ```bat
-   build.bat
-   ```
+1. Editar `JAVA_HOME` y `MAVEN_HOME` en `build.bat`.
+2. En `cmd`, desde la carpeta del proyecto: `build.bat`
 
-Comandos equivalentes, paso a paso:
-
-```bat
-set "JAVA_HOME=C:\Program Files\Java\jdk-21"
-set "PATH=%JAVA_HOME%\bin;%PATH%"
-
-mvn clean package
-
-jpackage --type app-image --name ConsultaClientes --app-version 1.0.0 ^
-  --input target\dist --main-jar consulta-clientes.jar ^
-  --main-class com.empresa.consulta.App --icon packaging\icono.ico ^
-  --dest target\installer
-
-copy config\logo.png target\installer\ConsultaClientes\
-
-copy config\config.properties target\installer\ConsultaClientes\
-```
-
-### Resultado
+Resultado:
 
 ```
-target\installer\ConsultaClientes\
-├── ConsultaClientes.exe      ← lo que abre el usuario
-├── config.properties         ← credenciales (editable)
-├── logo.png                  ← logo (opcional)
-├── logs\                     ← se crea al abrir la app
-├── app\                      ← jar de la aplicación
-└── runtime\                  ← Java embebido
+target\installer\ValidadorEdoCta\
+├── ValidadorEdoCta.exe      ← lo que abre el usuario
+├── config.properties        ← credenciales y procedimientos (editable)
+├── bonificaciones.csv       ← catálogo de bonificaciones (editable, sin recompilar)
+├── logo.png                 ← logo (opcional)
+├── logs\                    ← se crea al abrir la app
+├── validaciones\            ← se crea al guardar la primera validación
+├── app\                     ← jar de la aplicación
+└── runtime\                 ← Java embebido
 ```
-
-Comprimir la carpeta `ConsultaClientes` completa en un `.zip` y compartirla.
 
 ### Probar sin generar el .exe
 
 ```bat
 mvn clean package
-java -jar target\dist\consulta-clientes.jar
+java -jar target\dist\validador-edocta.jar
 ```
 
-Con `config.properties` en la carpeta desde donde se ejecuta el comando.
+Con `config.properties` en la carpeta desde donde se ejecuta el comando. Para probar **sin base de datos**,
+poner `modo=demo` y consultar los clientes ficticios `10000001` (al corriente) o `10000002` (con atraso) con corte `20/09/2026`.
 
 ---
 
 ## Configuración (`config.properties`)
 
 ```properties
-sqlserver.nombre=Carteras
+modo=sqlserver
 sqlserver.url=jdbc:sqlserver://servidor-sql:1433;databaseName=Carteras;encrypt=true;trustServerCertificate=true
 sqlserver.usuario=usuario_lectura
 sqlserver.password=cambiar_esto
-sqlserver.consulta=SELECT * FROM dbo.maeDirectorio WHERE NumeroCliente = ?
+
+# Procedimientos: :cliente = número de cliente, :corte = fecha de corte
+sp.directorio=EXEC dbo.spcQCDirectorio :cliente
+sp.muebles=EXEC dbo.spcQCMuebles :cliente
+...
+
+# Nombre real de una columna si no se encuentra sola
+columna.muebles.saldoFecha=imp_SaldoFecha
 ```
 
-El archivo se busca en este orden:
+El archivo se busca en: `-Dconfig=...`, la carpeta del `.exe` y la carpeta de trabajo.
 
-1. La ruta indicada con `-Dconfig=C:\ruta\config.properties`.
-2. La carpeta donde está `ConsultaClientes.exe`.
-3. La carpeta de trabajo actual.
+### Procedimientos
 
-Notas:
+Todos reciben `@NumCte INT` (préstamos además `@iFechaConCorteAl20 BIT`, se manda 1). Algunos no devuelven filas:
+dejan el resultado en una tabla `tmp*` que se lee con un `SELECT` en la misma sentencia:
 
-- La consulta debe tener **un solo `?`**, que se reemplaza por el número de cliente como valor numérico.
-- En este archivo la barra invertida se escribe doble. Para una instancia con nombre de SQL Server: `jdbc:sqlserver://servidor\\INSTANCIA;databaseName=Carteras;...`
-- `trustServerCertificate=true` evita errores con certificados autofirmados en SQL Server.
-- **No subir credenciales reales al repositorio.** Editar `config.properties` solo en la carpeta distribuida.
+| Clave | Sentencia |
+|---|---|
+| `sp.credito` | `EXEC dbo.spcQCCredito :cliente; SELECT * FROM dbo.tmpQCCredito01` |
+| `sp.dineroElectronico` | `EXEC dbo.spcQCDineroElectronico :cliente; SELECT * FROM dbo.tmpDineroElectronico3` |
+| `sp.informativa` | `EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp` |
+| `sp.marcasContacto` | `EXEC dbo.proc_clientenocontactado :cliente; SELECT * FROM dbo.tmp_clientenocontactado` |
 
-### Logo e ícono
+**Permisos:** los procedimientos hacen `DROP TABLE` / `SELECT INTO` sobre tablas `tmp*` de `dbo`, así que un usuario
+de solo lectura no basta. El validador ejecuta cada listado en una transacción que se deshace (`ROLLBACK`) al
+terminar: la base queda igual y, si dos personas consultan a la vez, la segunda espera a la primera en lugar de
+leer tablas `tmp*` ajenas.
 
-| Archivo | Uso | ¿Requiere recompilar? |
-|---|---|---|
-| `config/logo.png` | Logo arriba a la izquierda de la ventana (PNG con fondo transparente, se escala a 48 px de alto). `build.bat` lo copia junto al `.exe`. | No: basta con reemplazar `logo.png` en la carpeta distribuida. |
-| `packaging/icono.ico` | Ícono del `.exe` en el Explorador de Windows (`jpackage --icon`). | Sí |
-| `src/main/resources/icono.png` | Ícono de la ventana y de la barra de tareas (va dentro del jar). | Sí |
+Los procedimientos toman la fecha de corte de `catFechas`; la fecha de la pantalla solo se usa en los cálculos
+del validador (bonificación y leyendas).
 
-Si `logo.png` no existe, la ventana se muestra sin logo.
+### Columnas
+
+Los nombres reales de las columnas ya están mapeados (`SaldoALaFecha`, `NuevoInteresCargado`, `Vencido2`, `idu_Plazo`,
+`InteresFinanciamiento`, `NumeroCiudad`-`NumeroColonia`...). Si algún procedimiento cambia y en **Listados > Avisos**
+aparece `No se encontró la columna para muebles.saldoFecha`, se indica el nombre nuevo en `config.properties`
+sin recompilar: `columna.muebles.saldoFecha=NombreNuevo`. Si un procedimiento falla, su pestaña dice "(error)" y el
+detalle queda en `logs\errores-0.log`.
+
+### Actualizar las bonificaciones (sin recompilar)
+
+El catálogo está en `bonificaciones.csv`, junto al `.exe`:
+
+```
+cartera,plazo,dias_transcurridos,factor,vigente_desde
+MUEBLES,12,290,0.0587,1901-01-01
+PRESTAMOS,12,350,0.0015,2024-06-20
+```
+
+- Para cada compra se usa el bloque con la `vigente_desde` más reciente que sea menor o igual a la fecha de compra
+  (igual que `fec_iniciobloque` en `cat_bonificacionescarteras`).
+- Si cambian los factores, **agregar** renglones con la nueva `vigente_desde`; las compras anteriores conservan sus
+  factores. Guardar y volver a abrir la aplicación (la barra de estado indica qué catálogo se cargó).
+- Si el archivo no existe se usa la copia incluida en el programa (`src/main/resources/bonificaciones.csv`, que
+  `build.bat` copia junto al `.exe`). Otra ruta: `bonificaciones.archivo` en `config.properties`.
 
 ### Logs
 
-La aplicación guarda un registro en `logs\consulta-clientes-0.log`, junto al `.exe` (o en la carpeta de trabajo al ejecutar el jar).
-Si esa carpeta no tiene permisos de escritura, usa `%USERPROFILE%\.consulta-clientes\logs`.
-
-Además se genera `logs\errores-0.log`, que contiene **solo advertencias y errores** (con el detalle completo de la excepción), para revisar fallos sin leer todo el registro.
-
-- Se registra: inicio de la app, ruta del `config.properties` usado, cada consulta (base, número de cliente, filas y tiempo) y los errores con su detalle completo.
-- **Nunca** se registra la contraseña.
-- Los archivos rotan al llegar a 5 MB y se guardan hasta 5 de cada tipo (`-0.log` es el más reciente). Los cambios en tamaño y cantidad se hacen en `Log.java`.
-
-Ejemplo:
-
-```
-2026-10-19 14:03:21.512 INFO    [ConsultaService] [Carteras] Consultando cliente 12345
-2026-10-19 14:03:21.840 INFO    [ConsultaService] [Carteras] Cliente 12345: 3 fila(s) en 328 ms
-```
+`logs\validador-0.log` (todo) y `logs\errores-0.log` (solo advertencias y errores), junto al `.exe`.
+Rotan a 5 MB, se guardan hasta 5. **Nunca** se registra la contraseña.
 
 ### Seguridad
 
-- La contraseña queda en texto plano: usar un **usuario de solo lectura**.
-- La conexión se abre en modo `readOnly`.
-- Límites: 10 s para conectar, 30 s por consulta y un máximo de 1000 filas (configurables en `ConsultaService.java`).
-
----
-
-## Instalador `.exe` (opcional)
-
-Para generar un instalador en lugar de la carpeta portable, cambiar `--type app-image` por `--type exe` e instalar [WiX Toolset 3.14](https://github.com/wixtoolset/wix3/releases).
-No se recomienda en este caso: se instalaría en `Program Files` y los usuarios sin permisos de administrador no podrían editar `config.properties`.
+- La contraseña queda en texto plano: usar un usuario con permisos solo sobre lo necesario (ejecutar los
+  procedimientos y crear/borrar sus tablas `tmp*`).
+- Cada listado se deshace con `ROLLBACK`. Límites: 10 s para conectar, 60 s por procedimiento, 500 filas.
