@@ -229,7 +229,6 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
         boolean revolvente = tipo == TipoCartera.ROPA || tipo == TipoCartera.TIEMPO_AIRE;
 
         long saldo = r.entero("saldoFecha", "SaldoALaFecha", "SaldoFecha");
-        long interesAnterior = r.entero("interesAdicionalMesAnterior", "InteresAdicionalMesAnt", "IntAdicMesAnt");
         long interes = revolvente
                 ? r.entero("interesAdicional", "InteresAdicionalMesAct", "InteresAdicMesAct")
                 : r.entero("interesAdicional", "InteresAdicional");
@@ -240,8 +239,17 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
         }
 
         // Interés adicional cargado en el mes; si el listado no lo trae, la diferencia contra el mes anterior
+        // Préstamos no trae el interés del mes anterior: se deduce del total menos el cargado en el mes
+        Object anterior = r.opcional("interesAdicionalMesAnterior", "InteresAdicionalMesAnt", "IntAdicMesAnt");
         Object nuevoInteres = r.opcional("interesAdicionalMes", "NuevoInteresCargado", "InteresAdicionalMes");
-        long interesMes = nuevoInteres != null ? Registro.aEntero(nuevoInteres) : Math.max(0, interes - interesAnterior);
+        if (anterior == null && nuevoInteres == null) {
+            r.valor("interesAdicionalMesAnterior", "InteresAdicionalMesAnt"); // reporta la columna faltante
+        }
+        long interesMes = Registro.aEntero(nuevoInteres);
+        long interesAnterior = anterior != null ? Registro.aEntero(anterior) : Math.max(0, interes - interesMes);
+        if (nuevoInteres == null) {
+            interesMes = Math.max(0, interes - interesAnterior);
+        }
 
         String articulo = switch (tipo) {
             case ROPA -> "ROPA";
