@@ -36,11 +36,13 @@ public class PanelEstadoCuenta extends JPanel {
     }
 
     private final JEditorPane html = new JEditorPane("text/html", "");
+    private final String leyendaMercadotecnia;
     private ExpedienteCliente expediente;
     private EstadoCuentaEsperado esperado;
 
-    public PanelEstadoCuenta() {
+    public PanelEstadoCuenta(String leyendaMercadotecnia) {
         super(new BorderLayout());
+        this.leyendaMercadotecnia = leyendaMercadotecnia;
         html.setEditable(false);
         add(new JScrollPane(html), BorderLayout.CENTER);
         limpiar();
@@ -73,12 +75,12 @@ public class PanelEstadoCuenta extends JPanel {
             html.setText("<html><body style='font-family:sans-serif;padding:16px;color:" + p.tenue() + "'>"
                     + "Consulta un cliente para ver su estado de cuenta esperado.</body></html>");
         } else {
-            html.setText(armar(expediente, esperado, p));
+            html.setText(armar(expediente, esperado, leyendaMercadotecnia, p));
         }
         html.setCaretPosition(0);
     }
 
-    private static String armar(ExpedienteCliente exp, EstadoCuentaEsperado esp, Paleta p) {
+    private static String armar(ExpedienteCliente exp, EstadoCuentaEsperado esp, String leyenda, Paleta p) {
         Cliente c = exp.cliente();
         StringBuilder sb = new StringBuilder("<html><body style='font-family:sans-serif;font-size:10px;margin:8px;color:")
                 .append(p.texto()).append("'>");
@@ -94,17 +96,23 @@ public class PanelEstadoCuenta extends JPanel {
                 .append("<font size='5' color='").append(p.azul()).append("'><b>Coppel</b></font>")
                 .append("&nbsp;&nbsp;&nbsp;<font size='4'><b>Estado de Cuenta</b></font> <font size='5'><b>")
                 .append(e(esp.asteriscos())).append("</b></font><br><br>")
-                .append("<b>").append(e(c.nombre())).append("</b><br>")
-                .append(e(Formato.domicilio(c))).append("<br>")
-                .append(e(unir(c.colonia(), c.municipio()))).append("<br>")
-                .append(c.telefono().isBlank() || c.telefono().equals("0") ? "" : "TEL: " + e(c.telefono()))
-                .append("<br><br><font face='monospaced'>")
-                .append(e(c.numeroCliente() + c.digito())).append("&nbsp;&nbsp;&nbsp;")
-                .append(e(Formato.cadenaCobranza(c))).append("&nbsp;&nbsp;&nbsp;").append(e(c.jefeGrupo())).append("<br>")
-                .append(e(c.supervisor())).append("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
-                .append(e(Formato.centro(c.centro()))).append("<br>")
-                .append(e(Formato.zona(c.zona()))).append("&nbsp;&nbsp;&nbsp;").append(e(c.situacionEspecial() + c.causaSituacion()))
-                .append("</font></td>");
+                .append("<b>").append(fijo(c.nombre())).append("</b>");
+        for (String renglon : Formato.domicilio(c)) {
+            sb.append("<br>").append(fijo(renglon));
+        }
+        if (!c.telefono().isBlank() && !c.telefono().equals("0")) {
+            sb.append("<br>TEL: ").append(e(c.telefono()));
+        }
+        // Tres renglones de claves, como en el impreso. El número de en medio es el consecutivo de impresión
+        String tenue = "<font color='" + p.tenue() + "'>";
+        sb.append("<br><br><table cellspacing='0' cellpadding='0'><tr>")
+                .append(clave(c.numeroCliente() + c.digito())).append(clave(Formato.cadenaCobranza(c)))
+                .append(clave(c.jefeGrupo())).append("<td></td></tr><tr>")
+                .append(clave(c.supervisor())).append("<td nowrap>").append(tenue).append("(consec.)</font></td>")
+                .append(clave(Formato.centro(c.centro())))
+                .append("<td nowrap>&nbsp;&nbsp;&nbsp;&nbsp;").append(e(esp.situacionEspecial())).append("</td></tr><tr>")
+                .append(clave(c.inicialCiudad().isEmpty() ? "?" : c.inicialCiudad())).append(clave(Formato.zona(c.zona())))
+                .append("<td></td><td></td></tr></table></td>");
         sb.append("<td valign='middle' align='center' width='12%' style='border:1px dashed #999'>[ QR ]</td>");
         sb.append("<td valign='top' width='33%'><table width='100%' cellspacing='0' cellpadding='3' bgcolor='")
                 .append(p.gris()).append("'>")
@@ -169,15 +177,30 @@ public class PanelEstadoCuenta extends JPanel {
                 .append("<td width='50%' bgcolor='").append(p.gris()).append("' align='center'>")
                 .append(e(esp.interesesCartera())).append("</td></tr><tr>")
                 .append("<td valign='top' bgcolor='").append(p.gris()).append("'>");
-        for (String marca : exp.marcasContacto()) {
-            sb.append(e(marca.split(":")[0].trim())).append("<br>");
+        if (!esp.marcaContacto().isEmpty()) {
+            sb.append(e(esp.marcaContacto())).append("<br>");
         }
-        sb.append("AVISO IMPORTANTE:<br><i>(leyenda según la situación del cliente)</i>");
-        if (!esp.citatorio().isEmpty()) {
-            sb.append("<br><b>").append(e(esp.citatorio())).append("</b>");
-        }
-        sb.append("</td><td valign='top' bgcolor='").append(p.gris()).append("'><i>Leyenda de mercadotecnia del mes</i>")
+        sb.append("AVISO IMPORTANTE:<br>").append(esp.avisoImportante().isEmpty()
+                ? "<font color='" + p.tenue() + "'><i>(" + e(esp.explicacionAviso()) + ")</i></font>"
+                : e(esp.avisoImportante()));
+        sb.append("</td><td valign='top' bgcolor='").append(p.gris()).append("'>")
+                .append(leyenda.isEmpty()
+                        ? "<font color='" + p.tenue() + "'><i>(capturar leyenda.mercadotecnia en config.properties)</i></font>"
+                        : e(leyenda))
                 .append("<br><br>Dudas o comentarios llama al Centro de Atención al Cliente:800 220 7735</td></tr></table>");
+
+        // Lo que no se imprime pero ayuda a revisar
+        sb.append("<br><b>Notas del cálculo</b><ul>")
+                .append("<li>Asteriscos [16]: ").append(e(esp.explicacionAsteriscos())).append("</li>")
+                .append("<li>Aviso importante: ").append(e(esp.explicacionAviso())).append("</li>")
+                .append("<li>Citatorio [18] según el manual: ")
+                .append(esp.citatorio().isEmpty() ? "no aplica" : e(esp.citatorio()))
+                .append(" (").append(e(esp.explicacionCitatorio())).append("). El formato 2026 no lo imprime.</li>")
+                .append("<li>Situación especial en el directorio: ")
+                .append(e(c.situacionEspecial() + c.causaSituacion()))
+                .append(esp.situacionEspecial().isEmpty() ? " (no se imprime)" : "").append("</li>")
+                .append("<li>(consec.): consecutivo del estado de cuenta en la impresión; depende del lote, no se valida.</li>")
+                .append("</ul>");
 
         // Detalle de bonificaciones
         sb.append("<br><b>Cálculo de bonificaciones [7]</b><table cellspacing='0' cellpadding='2'>")
@@ -206,23 +229,20 @@ public class PanelEstadoCuenta extends JPanel {
         return "<td nowrap align='right' style='font-size:11px'><b>" + Formato.importe(valor) + "</b></td>";
     }
 
+    /** Una clave del bloque de datos del cliente, con separación a la derecha. */
+    private static String clave(String texto) {
+        return "<td nowrap><font face='monospaced'>" + e(texto) + "</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>";
+    }
+
+    /** Texto que conserva los espacios dobles del impreso. */
+    private static String fijo(String texto) {
+        return e(texto).replace("  ", "&nbsp; ");
+    }
+
     private static String monedas(int n) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < Math.max(4, n); i++) {
             sb.append(i < n ? "● " : "○ ");
-        }
-        return sb.toString();
-    }
-
-    private static String unir(String... partes) {
-        StringBuilder sb = new StringBuilder();
-        for (String p : partes) {
-            if (p != null && !p.isBlank()) {
-                if (!sb.isEmpty()) {
-                    sb.append(' ');
-                }
-                sb.append(p.trim());
-            }
         }
         return sb.toString();
     }

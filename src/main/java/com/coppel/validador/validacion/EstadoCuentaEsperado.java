@@ -13,7 +13,10 @@ import java.util.List;
  * @param favorPagarAntesDe  "INMEDIATO" o la fecha [15]
  * @param facturas           tienda + factura * artículos [19]
  * @param interesesCartera   IR$..., IM$... [20]
- * @param citatorio          "CIT # n" o vacío [18]
+ * @param citatorio          "CIT # n" o vacío [18]; el formato 2026 no lo imprime
+ * @param marcaContacto      3MSC, NTE o NCE arriba de "AVISO IMPORTANTE", o vacío
+ * @param avisoImportante    leyenda bajo "AVISO IMPORTANTE:"; vacía si no se pudo determinar
+ * @param situacionEspecial  situación y causa que se imprimen junto al centro (I35), o vacío
  * @param alertas            situaciones que impiden o condicionan el estado de cuenta
  */
 public record EstadoCuentaEsperado(
@@ -27,6 +30,10 @@ public record EstadoCuentaEsperado(
         String interesesCartera,
         String citatorio,
         String explicacionCitatorio,
+        String marcaContacto,
+        String avisoImportante,
+        String explicacionAviso,
+        String situacionEspecial,
         long saldoDineroElectronico,
         int monedasAbonoPuntual,
         List<String> alertas) {

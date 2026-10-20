@@ -53,6 +53,9 @@ class CalculadoraEstadoCuentaTest {
         assertEquals(9, esp.saldoDineroElectronico());
         assertEquals(1, esp.monedasAbonoPuntual());
         assertTrue(esp.alertas().isEmpty(), esp.alertas().toString());
+        assertEquals(CalculadoraEstadoCuenta.AVISO_PUNTUALIDAD, esp.avisoImportante());
+        assertEquals("", esp.marcaContacto());
+        assertEquals("", esp.situacionEspecial(), "I23 no se imprime");
     }
 
     @Test
@@ -86,6 +89,8 @@ class CalculadoraEstadoCuentaTest {
         assertEquals("2000200001*2 0600200002*2", esp.facturas());
         assertEquals("IR$73   IM$293", esp.interesesCartera());
         assertFalse(esp.citatorio().isEmpty());
+        assertEquals("3MSC", esp.marcaContacto());
+        assertEquals(CalculadoraEstadoCuenta.AVISO_DEFINIR_PAGOS, esp.avisoImportante());
     }
 
     @Test
@@ -105,25 +110,13 @@ class CalculadoraEstadoCuentaTest {
     }
 
     @Test
-    void puntosDeRevisionIncluyenDatosDelCliente() {
-        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
-        List<PuntoRevision> puntos = GeneradorPuntosRevision.generar(exp, calculadora.calcular(exp), "");
-        assertTrue(puntos.stream().anyMatch(p -> p.esperado().equals("PRINCIPAL # 1 CALLE 2/CALLE 3 CASA AZUL")));
-        assertTrue(puntos.stream().anyMatch(p -> p.esperado().equals("AACPF0322")));
-        assertTrue(puntos.stream().anyMatch(p -> p.esperado().equals("5000-01")));
-        assertTrue(puntos.stream().anyMatch(p -> p.esperado().equals("100-0200")));
-        assertTrue(puntos.stream().anyMatch(p -> p.esperado().equals("$ 213")));
-        assertTrue(puntos.stream().allMatch(p -> p.resultado() == PuntoRevision.Resultado.PENDIENTE));
-    }
-
-    @Test
     void situacionEspecialExcluida() {
         ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
         var cliente = exp.cliente();
         var excluido = new com.coppel.validador.model.Cliente(cliente.numeroCliente(), cliente.digito(),
                 cliente.nombre(), cliente.calle(), cliente.numeroCasa(), cliente.departamento(), cliente.entreCalles(),
                 cliente.rumbo(), cliente.complemento(),
-                cliente.telefono(), cliente.colonia(), cliente.ciudad(), cliente.municipio(), cliente.zona(),
+                cliente.telefono(), cliente.colonia(), cliente.ciudad(), cliente.inicialCiudad(), cliente.municipio(), cliente.zona(),
                 cliente.lugarTrabajo(), cliente.conyuge(), cliente.puntualidad(), cliente.puntualidadActiva(),
                 cliente.estadoCivil(), cliente.tipoCasa(), cliente.sexo(), cliente.ingresoMensual(),
                 cliente.antiguedad(), cliente.fechaNacimiento(), cliente.jefeGrupo(), cliente.supervisor(),

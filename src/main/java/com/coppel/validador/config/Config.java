@@ -114,13 +114,6 @@ public final class Config {
         return props.getProperty("leyenda.mercadotecnia", "").trim();
     }
 
-    /** Carpeta donde se guardan los resultados de las validaciones. */
-    public Path carpetaValidaciones() {
-        String valor = props.getProperty("validaciones.carpeta", "validaciones").trim();
-        Path ruta = Paths.get(valor);
-        return ruta.isAbsolute() ? ruta : origen.toAbsolutePath().getParent().resolve(ruta);
-    }
-
     /**
      * Logo opcional, ubicado en la misma carpeta que config.properties.
      * Devuelve null si no existe para que la ventana se muestre sin logo.

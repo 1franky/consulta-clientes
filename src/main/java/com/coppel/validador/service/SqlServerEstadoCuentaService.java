@@ -100,13 +100,15 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
 
             List<Registro> directorio = consulta.ejecutar("directorio", "Directorio");
             List<Registro> credito = consulta.ejecutar("credito", "Crédito");
+            List<Registro> ciudad = consulta.ejecutar("inicialCiudad", "Ciudad");
             // Sin directorio no tiene caso avisar de cada columna faltante
             List<String> avisosCliente = directorio.isEmpty() ? new ArrayList<>() : avisos;
             if (directorio.isEmpty()) {
                 avisos.add("El listado del directorio no devolvió datos para el cliente " + numeroCliente);
             }
             Cliente cliente = mapearCliente(numeroCliente, unir("directorio", directorio, forzadas, avisosCliente),
-                    unir("credito", credito, forzadas, avisosCliente));
+                    unir("credito", credito, forzadas, avisosCliente),
+                    unir("inicialCiudad", ciudad, forzadas, avisosCliente));
 
             List<Cuenta> cuentas = new ArrayList<>();
             for (ListadoCartera listado : CARTERAS) {
@@ -154,9 +156,15 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
     // ---------- Mapeo de columnas a modelo ----------
     // Los primeros alias son las columnas reales de los procedimientos de Carteras.
 
-    /** dir = spcQCDirectorio, cred = spcQCCredito (tmpQCCredito01). */
-    private static Cliente mapearCliente(long numeroCliente, Registro dir, Registro cred) {
-        String nombre = dir.texto("nombre", "NombreCompleto", "Nombre", "NombreCliente").replaceAll("\\s+", " ");
+    /** dir = spcQCDirectorio, cred = spcQCCredito (tmpQCCredito01), cd = CatCiudades. */
+    private static Cliente mapearCliente(long numeroCliente, Registro dir, Registro cred, Registro cd) {
+        // NombreCompleto queda en NULL si falta el segundo nombre: se arma igual que el SP, con la parte vacía
+        Object completo = dir.opcional("nombre", "NombreCompleto", "NombreCliente");
+        String nombre = completo != null ? Registro.aTexto(completo)
+                : String.join(" ", Registro.aTexto(dir.opcional("nombre1", "cunombre1", "Nombre")),
+                        Registro.aTexto(dir.opcional("nombre2", "cunombre2")),
+                        Registro.aTexto(dir.opcional("apellidoPaterno", "cuapellidopaterno", "ApellidoPaterno")),
+                        Registro.aTexto(dir.opcional("apellidoMaterno", "cuapellidomaterno", "ApellidoMaterno"))).strip();
 
         Object puntualidad = cred.opcional("puntualidad", "PuntualidadCliente", "Puntualidad");
         if (puntualidad == null) {
@@ -194,10 +202,11 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 dir.texto("departamento", "DepartamentoCliente", "Departamento"),
                 Registro.aTexto(dir.opcional("entreCalles", "cuentrecalles", "EntreCalles")),
                 dir.texto("rumbo", "Rumbo"),
-                dir.texto("complemento", "Complemento", "ComplementoCte", "cucomplemento"),
+                dir.texto("complemento", "cucomplemento", "Complemento", "ComplementoCte"),
                 telefono.equals("0") ? "" : telefono,
                 dir.texto("colonia", "Colonia", "NombreColonia"),
                 dir.texto("ciudad", "Ciudad", "NombreCiudad"),
+                Registro.aTexto(cd.opcional("inicialCiudad", "InicialCiudad")),
                 dir.texto("municipio", "MunicipioZona", "Municipio", "PoblacionZona"),
                 zona,
                 dir.texto("lugarTrabajo", "LugarDeTrabajo", "LugarTrabajo"),

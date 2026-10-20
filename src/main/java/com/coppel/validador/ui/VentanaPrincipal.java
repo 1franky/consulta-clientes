@@ -1,12 +1,9 @@
 package com.coppel.validador.ui;
 
 import com.coppel.validador.model.ExpedienteCliente;
-import com.coppel.validador.service.BitacoraValidacionService;
 import com.coppel.validador.service.EstadoCuentaService;
 import com.coppel.validador.validacion.CalculadoraEstadoCuenta;
 import com.coppel.validador.validacion.EstadoCuentaEsperado;
-import com.coppel.validador.validacion.GeneradorPuntosRevision;
-import com.coppel.validador.validacion.PuntoRevision;
 
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
@@ -31,15 +28,14 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Pantalla del validador: muestra impresa a la izquierda; a la derecha el estado de cuenta
- * esperado, los puntos a corroborar y los listados. No contiene SQL ni reglas de negocio:
- * recibe ya construidos el servicio de datos, la calculadora y la bitácora (ver App).
+ * esperado y los listados. No contiene SQL ni reglas de negocio: recibe ya construidos el
+ * servicio de datos y la calculadora (ver App).
  */
 public class VentanaPrincipal extends JFrame {
 
@@ -50,8 +46,6 @@ public class VentanaPrincipal extends JFrame {
 
     private final EstadoCuentaService service;
     private final CalculadoraEstadoCuenta calculadora;
-    private final BitacoraValidacionService bitacora;
-    private final String leyendaMercadotecnia;
 
     private final JTextField txtCliente = new JTextField(12);
     private final JTextField txtCorte = new JTextField(9);
@@ -60,19 +54,15 @@ public class VentanaPrincipal extends JFrame {
     private final JLabel lblEstado = new JLabel(" ");
     private final JTabbedPane pestanas = new JTabbedPane();
     private final PanelMuestra panelMuestra = new PanelMuestra();
-    private final PanelEstadoCuenta panelEstadoCuenta = new PanelEstadoCuenta();
-    private final PanelPuntosRevision panelPuntos = new PanelPuntosRevision(this::guardar);
+    private final PanelEstadoCuenta panelEstadoCuenta;
     private final PanelListados panelListados = new PanelListados();
 
-    private ExpedienteCliente expediente;
-
     public VentanaPrincipal(EstadoCuentaService service, CalculadoraEstadoCuenta calculadora,
-                            BitacoraValidacionService bitacora, String leyendaMercadotecnia, Path logo) {
+                            String leyendaMercadotecnia, Path logo) {
         super("Validador de estados de cuenta");
         this.service = service;
         this.calculadora = calculadora;
-        this.bitacora = bitacora;
-        this.leyendaMercadotecnia = leyendaMercadotecnia;
+        this.panelEstadoCuenta = new PanelEstadoCuenta(leyendaMercadotecnia);
 
         txtCorte.setText(FECHA.format(corteSugerido(LocalDate.now())));
         txtCorte.setToolTipText("Fecha de corte (dd/mm/aaaa)");
@@ -96,7 +86,6 @@ public class VentanaPrincipal extends JFrame {
         cargarIcono();
 
         pestanas.addTab("Estado de cuenta esperado", panelEstadoCuenta);
-        pestanas.addTab("Puntos a revisar", panelPuntos);
         pestanas.addTab("Listados", panelListados);
 
         JSplitPane division = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, panelMuestra, pestanas);
@@ -158,18 +147,14 @@ public class VentanaPrincipal extends JFrame {
 
         btnConsultar.setEnabled(false);
         lblEstado.setText("Consultando cliente " + numeroCliente + " en " + service.origen() + "...");
-        expediente = null;
         panelEstadoCuenta.limpiar();
-        panelPuntos.mostrar(List.of());
         panelListados.limpiar();
 
         new SwingWorker<Resultado, Void>() {
             @Override
             protected Resultado doInBackground() throws Exception {
                 ExpedienteCliente exp = service.consultar(numeroCliente, corte);
-                EstadoCuentaEsperado esp = calculadora.calcular(exp);
-                List<PuntoRevision> puntos = GeneradorPuntosRevision.generar(exp, esp, leyendaMercadotecnia);
-                return new Resultado(exp, esp, puntos);
+                return new Resultado(exp, calculadora.calcular(exp));
             }
 
             @Override
@@ -177,14 +162,11 @@ public class VentanaPrincipal extends JFrame {
                 btnConsultar.setEnabled(true);
                 try {
                     Resultado r = get();
-                    expediente = r.expediente();
                     panelEstadoCuenta.mostrar(r.expediente(), r.esperado());
-                    panelPuntos.mostrar(r.puntos());
                     panelListados.mostrar(r.expediente());
                     int avisos = r.expediente().avisos().size();
                     lblEstado.setText("Cliente " + numeroCliente + " " + r.expediente().cliente().nombre() + ": "
-                            + r.esperado().renglones().size() + " cuenta(s), " + r.puntos().size()
-                            + " puntos a revisar" + (avisos > 0 ? ", " + avisos + " aviso(s) en la pestaña Listados" : "")
+                            + r.esperado().renglones().size() + " cuenta(s)" + (avisos > 0 ? ", " + avisos + " aviso(s) en la pestaña Listados" : "")
                             + ". Origen: " + service.origen());
                 } catch (InterruptedException | ExecutionException | RuntimeException e) {
                     Throwable causa = e.getCause() != null ? e.getCause() : e;
@@ -197,32 +179,7 @@ public class VentanaPrincipal extends JFrame {
         }.execute();
     }
 
-    private void guardar(PanelPuntosRevision.Dictamen dictamen) {
-        if (expediente == null) {
-            return;
-        }
-        String muestra = panelMuestra.nombreMuestra();
-        if (muestra.isEmpty()) {
-            int r = JOptionPane.showConfirmDialog(this, "No hay una muestra abierta. ¿Guardar de todos modos?",
-                    "Sin muestra", JOptionPane.YES_NO_OPTION);
-            if (r != JOptionPane.YES_OPTION) {
-                return;
-            }
-        }
-        try {
-            Path archivo = bitacora.guardar(expediente, dictamen.puntos(), dictamen.dictamen(),
-                    dictamen.observacionGeneral(), muestra);
-            lblEstado.setText("Validación " + dictamen.dictamen() + " guardada en " + archivo);
-            JOptionPane.showMessageDialog(this, "Validación " + dictamen.dictamen() + " guardada en:\n" + archivo,
-                    "Validación guardada", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException e) {
-            LOG.log(Level.SEVERE, "No se pudo guardar la validación", e);
-            JOptionPane.showMessageDialog(this, "No se pudo guardar la validación:\n" + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private record Resultado(ExpedienteCliente expediente, EstadoCuentaEsperado esperado, List<PuntoRevision> puntos) {
+    private record Resultado(ExpedienteCliente expediente, EstadoCuentaEsperado esperado) {
     }
 
     /** Ícono de la ventana y la barra de tareas, incluido dentro del jar. */

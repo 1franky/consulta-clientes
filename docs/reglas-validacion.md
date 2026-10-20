@@ -4,7 +4,6 @@ Cómo calcula el validador cada dato del **Estado de Cuenta Correos** y de dónd
 son los puntos del "Chequeo" del manual *1. Estado de Cuenta Correos*.
 
 - El cálculo está en `validacion/CalculadoraEstadoCuenta.java`.
-- La lista de puntos que corrobora la persona está en `validacion/GeneradorPuntosRevision.java`.
 - Los formatos impresos (fechas, importes, cadena, centro, zona, domicilio) están en `validacion/Formato.java`.
 
 Todas las reglas se compararon contra estados de cuenta impresos y escaneados (corte al 20-Sep-2026). Las que
@@ -23,16 +22,19 @@ con *(deducida)*.
 
 | Dato | Origen (`spcQCDirectorio`) |
 |---|---|
-| Nombre | `NombreCompleto` (espacios dobles colapsados). |
-| Domicilio, primer renglón *(deducida)* | `Calle # NumeroCasa` + `DepartamentoCliente` + `Rumbo` + `cuentrecalles` + `Complemento`. Se comprobó en 5 muestras. |
-| Domicilio, segundo renglón *(deducida)* | `Colonia` + `MunicipioZona`. |
+| Nombre | `NombreCompleto`, con sus espacios dobles. Si viene en NULL (el SP lo deja así cuando falta `cunombre2`), se arma con `cunombre1`, `cunombre2`, `cuapellidopaterno` y `cuapellidomaterno`. |
+| Domicilio *(deducida)* | `Calle # NumeroCasa DepartamentoCliente Rumbo cuentrecalles cucomplemento`, separados por un espacio aunque la parte esté vacía (`# 110   loc`). Si pasa de 50 caracteres se corta en el último espacio de los primeros 50 y el resto va en el segundo renglón. Del complemento se quitan los teléfonos de 10 dígitos. Se comprobó en las 12 muestras. |
+| Domicilio, último renglón *(deducida)* | `Colonia` + `MunicipioZona`. |
 | Teléfono *(deducida)* | Solo `Telefono` (casa); las muestras no imprimen el celular. |
 | Número de cliente | Número + `Digito`. |
 | Cadena de cobranza | Puntualidad + puntualidad activa (`spcQCCredito`) + `EstadoCivil` + `TipoDeCasa` + `Sexo` + `IngresoMensual` (2 dígitos) + año de `Antiguedad` (2 dígitos). Ej. `AACPF0322`. |
+| Bloque de claves | Renglón 1: cliente + dígito, cadena, jefe de grupo. Renglón 2: supervisor, consecutivo, centro y situación especial. Renglón 3: ciudad abreviada y zona. |
 | Jefe de grupo / supervisor | `jefegrupo` / `supervisor`. |
+| Consecutivo *(deducida)* | Número entre supervisor y centro (2, 393, 1175...). Es el orden del estado de cuenta en el lote de impresión (sube con la zona y el domicilio), así que no se puede validar por cliente. |
+| Ciudad abreviada | `CatCiudades.InicialCiudad` de la ciudad del cliente: `ACYN` = Acayucan (`sp.inicialCiudad`). |
 | Centro | `centro` con guion antes de los dos últimos dígitos: `500001` → `5000-01`. |
 | Zona *(deducida)* | `NumeroCiudad-NumeroColonia`, con la colonia a 4 dígitos: `100-0200`. |
-| Situación especial | `SituacionEspecial` + `CausaSituacionEsp` (la más reciente). No todas las muestras la imprimen: es revisión visual. |
+| Situación especial *(deducida)* | `SituacionEspecial` + `CausaSituacionEsp`. En las muestras solo se imprime `I35`; `I23`, `I41` y `S50` no. |
 | [4] Referencia | `NomCompletoRef`, `CalleReferencia`, `CasaDeReferencia`... Solo si el cliente tiene referencia. |
 
 ## Sus compras al detalle
@@ -85,6 +87,7 @@ Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificac
 | [13] Pase a pagar | Total de la columna "Pase a pagar". |
 | [15] Favor de pagar antes de | `INMEDIATO` si la puntualidad es B, C, D o Z y el vencido es ≥ al abono total, o si es A y el vencido es ≥ 2 abonos totales. Si no, la fecha del siguiente corte. |
 | [16] Asteriscos | `**` cliente nuevo del mes; `*` al corriente (sin vencido); `***` puntualidad A con atraso entre 50% del abono y 75% de dos abonos; nada en otro caso. |
+| Aviso importante *(deducida)* | Puntualidad Z: "SU CUENTA ESTA A PUNTO DE PASAR AL DEPARTAMENTO LEGAL..." y no se imprime la marca. Marca 3MSC: "DEFINIR CON PAGOS". Marca NCE: "AL CLIENTE YA COMENZAMOS A CARGARLE INTERESES ADICIONALES". Puntualidad A: "POR SU PUNTUALIDAD USTED PUEDE LLEVAR LO QUE GUSTE A CREDITO...". Otros casos: sin muestra, se revisa a mano. |
 | [18] Citatorio | Abonos vencidos = vencido ÷ abono total. A/B con 1–2: CIT # 1; C/D con 1–2: CIT # 7; 3–4: CIT # 2; 5–6: CIT # 3; 7 o más: CIT # 4. No aplica con convenio activo. **En el formato 2026 no se observa: pendiente de confirmar.** |
 | [19] Facturas | Tienda (4 dígitos) + factura (6 dígitos) `*` número de artículos, de todas las cuentas menos ropa. |
 | [20] Interés adicional por cartera *(deducida)* | `I` + letra + `$` + suma del interés adicional total: R ropa, M muebles, B Deuda Bancoppel, P préstamos. |
@@ -93,7 +96,8 @@ Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificac
 | [24] Monedas | Número de abonos puntuales (`Desc_Corte` = "Corte N"). |
 | Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`. |
 | Marca de contacto | `3MSC`, `NTE` o `NCE` según las banderas de `tmp_clientenocontactado`. |
-| [14], [17], [23], [25] | Revisión visual: teléfono de tienda, leyenda de mercadotecnia, número de página y código QR. |
+| [17] Leyenda de mercadotecnia | `leyenda.mercadotecnia` de `config.properties`; se captura cada mes. |
+| [14], [23], [25] | Revisión visual: teléfono de tienda, número de página y código QR. |
 
 ## Alertas
 
@@ -104,9 +108,3 @@ Se muestran en rojo arriba del estado de cuenta esperado:
 - Cuenta con convenio de devolución: no se considera.
 - Sin saldo: no se le debe generar estado de cuenta.
 - Más de 5 cuentas: se pintan 5, pero los totales incluyen todas.
-
-## Dictamen
-
-Cada punto queda como Correcto, Error o No aplica. No se puede guardar si queda alguno pendiente o si un Error no
-tiene observación. El dictamen es **APROBADO** si no hay errores y **RECHAZADO** si hay al menos uno. Se guarda en
-`validaciones/validaciones-AAAA-MM.csv`.

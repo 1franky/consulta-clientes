@@ -33,6 +33,16 @@ public final class CalculadoraEstadoCuenta {
 
     private final CatalogoBonificaciones catalogo;
 
+    static final String AVISO_LEGAL = "SU CUENTA ESTA A PUNTO DE PASAR AL DEPARTAMENTO LEGAL.URGE QUE RESPONDA. "
+            + "DE NO HACERLO, PRONTO SERA BOLETINADO AL BURO DE CREDITO";
+    static final String AVISO_DEFINIR_PAGOS = "DEFINIR CON PAGOS";
+    static final String AVISO_INTERESES = "AL CLIENTE YA COMENZAMOS A CARGARLE INTERESES ADICIONALES";
+    static final String AVISO_PUNTUALIDAD = "POR SU PUNTUALIDAD USTED PUEDE LLEVAR LO QUE GUSTE A CREDITO. "
+            + "LO FELICITAMOS POR SER UN CLIENTE CUMPLIDO.";
+
+    /** Situaciones especiales que aparecen impresas junto al centro; I23, I41 y S50 no se imprimen. */
+    private static final Set<String> SITUACIONES_IMPRESAS = Set.of("I35");
+
     public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo) {
         this.catalogo = catalogo;
     }
@@ -114,6 +124,32 @@ public final class CalculadoraEstadoCuenta {
             explicacionCit = abonosVencidos + " abono(s) vencido(s), puntualidad " + puntualidad;
         }
 
+        // Marca de contacto y AVISO IMPORTANTE (deducidos de las muestras de 2026)
+        String marca = exp.marcasContacto().isEmpty() ? "" : exp.marcasContacto().get(0).split(":")[0].trim();
+        String aviso;
+        String explicacionAviso;
+        if (puntualidad.equals("Z")) {
+            marca = ""; // con puntualidad Z las muestras no imprimen la marca
+            aviso = AVISO_LEGAL;
+            explicacionAviso = "Puntualidad Z";
+        } else if (marca.equals("3MSC")) {
+            aviso = AVISO_DEFINIR_PAGOS;
+            explicacionAviso = "Marca 3MSC";
+        } else if (marca.equals("NCE")) {
+            aviso = AVISO_INTERESES;
+            explicacionAviso = "Marca NCE";
+        } else if (puntualidad.equals("A")) {
+            aviso = AVISO_PUNTUALIDAD;
+            explicacionAviso = "Puntualidad A";
+        } else {
+            aviso = "";
+            explicacionAviso = "Puntualidad " + puntualidad + (marca.isEmpty() ? " sin marca" : " con marca " + marca)
+                    + ": no hay muestra con este caso, revisar la leyenda a mano";
+        }
+
+        String situacion = cliente.situacionEspecial().trim() + cliente.causaSituacion().trim();
+        String situacionImpresa = SITUACIONES_IMPRESAS.contains(situacion) ? situacion : "";
+
         // [19] Tienda + factura * artículos (todas las cuentas menos ropa)
         String facturas = renglones.stream()
                 .map(Renglon::cuenta)
@@ -155,6 +191,10 @@ public final class CalculadoraEstadoCuenta {
                 interesesCartera,
                 citatorio,
                 explicacionCit,
+                marca,
+                aviso,
+                explicacionAviso,
+                situacionImpresa,
                 exp.dineroElectronico().saldo(),
                 exp.dineroElectronico().abonosPuntuales(),
                 alertas);

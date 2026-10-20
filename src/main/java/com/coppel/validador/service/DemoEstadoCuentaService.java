@@ -49,7 +49,7 @@ public final class DemoEstadoCuentaService implements EstadoCuentaService {
 
     private static ExpedienteCliente alCorriente(LocalDate corte) {
         Cliente cliente = new Cliente(CLIENTE_AL_CORRIENTE, "3", "ANA PEREZ LOPEZ", "PRINCIPAL", "1", "", "CALLE 2/CALLE 3",
-                "", "CASA AZUL", "", "CENTRO", "CIUDAD DEMO", "MUNICIPIO DEMO", "100-200", "Otros",
+                "", "CASA AZUL", "", "CENTRO", "CIUDAD DEMO", "CDMO", "MUNICIPIO DEMO", "100-200", "Otros",
                 "JUAN PEREZ RUIZ", "A", "A", "C", "P", "F", "3", LocalDate.of(2022, 1, 30),
                 LocalDate.of(1980, 1, 1), "90000001", "90000002", "500001", 1000, "I", "23", false, false, false,
                 new Cliente.Referencia("", "", "", "", "", "", ""));
@@ -68,7 +68,7 @@ public final class DemoEstadoCuentaService implements EstadoCuentaService {
 
     private static ExpedienteCliente conAtraso(LocalDate corte) {
         Cliente cliente = new Cliente(CLIENTE_CON_ATRASO, "1", "MARIA GOMEZ RUIZ", "HIDALGO", "1", "0",
-                "entre juarez y morelos", "", "CASA VERDE", "", "COLONIA DEMO", "CIUDAD DEMO", "MUNICIPIO DEMO",
+                "entre juarez y morelos", "", "CASA VERDE", "", "COLONIA DEMO", "CIUDAD DEMO", "CDMO", "MUNICIPIO DEMO",
                 "100-300", "Otros", "", "C", "D", "S", "P", "F", "6", LocalDate.of(2024, 10, 29),
                 LocalDate.of(2000, 1, 1), "90000001", "90000002", "500001", 1000, "I", "23", false, false, false,
                 new Cliente.Referencia("", "", "", "", "", "", ""));

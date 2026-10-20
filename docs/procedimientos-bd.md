@@ -20,12 +20,13 @@ corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 | `dineroElectronico` | `spcQCDineroElectronico` | `@NumCte INT` | **Sin filas**: tabla `tmpDineroElectronico3` |
 | `informativa` | `proc_carterainformativa` | `@num_cliente INT` | `SELECT 1`; situaciones en `tmp_CteSituacionEsp` |
 | `marcasContacto` | `proc_clientenocontactado` | `@num_cliente INT` | **Sin filas**: tabla `tmp_clientenocontactado` |
+| `inicialCiudad` | `SELECT` a `maeDirectorio` + `CatCiudades` | `:cliente` | `InicialCiudad` (ACYN) |
 
 Los que dejan el resultado en una tabla se configuran con un `SELECT` en la misma sentencia:
 
 ```properties
 sp.credito=EXEC dbo.spcQCCredito :cliente; SELECT * FROM dbo.tmpQCCredito01
-sp.dineroElectronico=EXEC dbo.spcQCDineroElectronico :cliente; SELECT * FROM dbo.tmpDineroElectronico3
+sp.dineroElectronico=EXEC dbo.spcQCDineroElectronico :cliente; IF OBJECT_ID('dbo.tmpDineroElectronico3') IS NOT NULL SELECT * FROM dbo.tmpDineroElectronico3
 sp.informativa=EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp
 sp.marcasContacto=EXEC dbo.proc_clientenocontactado :cliente; SELECT * FROM dbo.tmp_clientenocontactado
 ```
@@ -60,7 +61,7 @@ en **Listados > Avisos**.
 
 | Listado | Columnas |
 |---|---|
-| Directorio | `NombreCompleto`, `Digito`, `Calle`, `NumeroCasa`, `DepartamentoCliente`, `Rumbo`, `cuentrecalles`, `Complemento`, `Telefono`, `Colonia`, `Ciudad`, `MunicipioZona`, `NumeroCiudad`, `NumeroColonia`, `EstadoCivil`, `TipoDeCasa`, `Sexo`, `IngresoMensual`, `Antiguedad`, `FechaDeNacimiento`, `jefegrupo`, `supervisor`, `centro`, `NumeroTienda`, `SituacionEspecial`, `CausaSituacionEsp`, `NoEnviarEdoCta`, `NomCompletoRef`, `CalleReferencia`, `CasaDeReferencia`, `ColoniaReferencia`, `CiudadReferencia`, `TelefonoReferencia`, `ComplementoReferencia`, `NomCompletoCony`, `LugarDeTrabajo` |
+| Directorio | `NombreCompleto` (o `cunombre1`, `cunombre2`, `cuapellidopaterno`, `cuapellidomaterno`), `Digito`, `Calle`, `NumeroCasa`, `DepartamentoCliente`, `Rumbo`, `cuentrecalles`, `cucomplemento` / `Complemento`, `Telefono`, `Colonia`, `Ciudad`, `MunicipioZona`, `NumeroCiudad`, `NumeroColonia`, `EstadoCivil`, `TipoDeCasa`, `Sexo`, `IngresoMensual`, `Antiguedad`, `FechaDeNacimiento`, `jefegrupo`, `supervisor`, `centro`, `NumeroTienda`, `SituacionEspecial`, `CausaSituacionEsp`, `NoEnviarEdoCta`, `NomCompletoRef`, `CalleReferencia`, `CasaDeReferencia`, `ColoniaReferencia`, `CiudadReferencia`, `TelefonoReferencia`, `ComplementoReferencia`, `NomCompletoCony`, `LugarDeTrabajo` |
 | Crédito | `PuntualidadCliente`, `PuntualidadActiva` |
 | Muebles, Deuda Bancoppel, Reestructuras, CP Muebles | `NumeroTienda`, `NumeroFactura`, `DescripcionArticulo`, `NumeroDeArticulos`, `FechaVenta`, `PlazoVenta`, `InteresSobreCompra`, `AbonoMensual`, `AbonoDelMes`, `SaldoALaFecha`, `InteresAdicionalMesAnt`, `InteresAdicional`, `NuevoInteresCargado`, `Vencido`, `SaldaCon`, `SaldaCon20SigMes`, `FechaUltimoMov`, `FechaDelConvenio`, `FechaConvenioDevolucion` |
 | Ropa, Tiempo aire, CP Ropa | `NumeroTienda`, `FechaUltimaCompra`, `idu_Plazo`, `InteresSobreCompra`, `AbonoBase`, `AbonosDelMes`, `ComprasDelMes`, `SaldoALaFecha`, `InteresAdicionalMesAnt`, `InteresAdicionalMesAct`, `NuevoInteresCargado`, `Vencido2` / `Vencido`, `SaldaCon`, `SaldaCon20SigMes`, `FechaUltimoMov`, `fec_sinsaldo`, `MarcaConvDevolucion` |
@@ -82,7 +83,8 @@ Se probó contra un SQL Server de laboratorio en Docker con el esquema completo 
 
 - Dos clientes de las muestras reproducen el estado de cuenta impreso renglón por renglón.
 - `spcQCDineroElectronico` no genera `tmpDineroElectronico3`, porque el flag de configuración 7
-  (`fun_ObtenerConfiguracionFlag(7)`) está en NULL. La app lo reporta como aviso y continúa.
+  (`fun_ObtenerConfiguracionFlag(7)`) está en NULL: el procedimiento solo crea la tabla si vale 0 o 1. Con el
+  `IF OBJECT_ID(...)` el validador lo toma como "sin dinero electrónico" en vez de marcar error.
 - `cat_bonificacionescarteras` está vacía, así que los procedimientos devuelven bonificación 0 en muebles y ropa.
   El validador no depende de ese valor (ver [bonificaciones.md](bonificaciones.md)).
 

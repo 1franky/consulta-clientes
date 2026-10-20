@@ -16,6 +16,7 @@ public record Cliente(
         String telefono,
         String colonia,
         String ciudad,
+        String inicialCiudad,
         String municipio,
         String zona,
         String lugarTrabajo,

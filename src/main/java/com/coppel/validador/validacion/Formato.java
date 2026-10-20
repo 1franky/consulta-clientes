@@ -5,7 +5,10 @@ import com.coppel.validador.model.Cliente;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /** Formatos tal como se imprimen en el estado de cuenta. */
 public final class Formato {
@@ -54,21 +57,38 @@ public final class Formato {
                 + anio(c.antiguedad());
     }
 
+    /** Ancho del renglón del domicilio en el estado de cuenta. */
+    static final int ANCHO_DOMICILIO = 50;
+
+    private static final Pattern TELEFONO = Pattern.compile("(^|\\s)\\d{10}(?=\\s|$)");
+
     /**
-     * Primer renglón del domicilio como se imprime: calle # casa, departamento, rumbo, entre calles
-     * y complemento. Ej.: "HIDALGO # 1 0 entre juarez y morelos CASA VERDE"
+     * Domicilio como se imprime: calle # casa depto rumbo entre-calles complemento, partido en dos
+     * renglones de {@value #ANCHO_DOMICILIO} caracteres, y un último renglón con colonia y municipio.
+     * Las partes vacías conservan su espacio, igual que en el impreso ("# 110   loc").
      */
-    public static String domicilio(Cliente c) {
-        StringBuilder sb = new StringBuilder(c.calle().trim());
-        if (!c.numeroCasa().isBlank()) {
-            sb.append(" # ").append(c.numeroCasa().trim());
-        }
-        for (String parte : new String[]{c.departamento(), c.rumbo(), c.entreCalles(), c.complemento()}) {
-            if (parte != null && !parte.isBlank()) {
-                sb.append(' ').append(parte.trim());
+    public static List<String> domicilio(Cliente c) {
+        String linea = (c.calle().trim() + " # " + c.numeroCasa().trim() + " " + c.departamento().trim() + " "
+                + c.rumbo().trim() + " " + c.entreCalles().trim() + " " + sinTelefono(c.complemento().trim())).stripTrailing();
+        List<String> renglones = new ArrayList<>();
+        if (linea.length() > ANCHO_DOMICILIO) {
+            // Se corta en el último espacio dentro de los primeros 50 caracteres
+            int corte = linea.substring(0, ANCHO_DOMICILIO).lastIndexOf(' ');
+            if (corte <= 0) {
+                corte = ANCHO_DOMICILIO;
             }
+            renglones.add(linea.substring(0, corte).stripTrailing());
+            renglones.add(linea.substring(corte).strip());
+        } else {
+            renglones.add(linea);
         }
-        return sb.toString();
+        renglones.add((c.colonia().trim() + " " + c.municipio().trim()).strip());
+        return renglones;
+    }
+
+    /** El complemento no imprime números de teléfono (10 dígitos) que se hayan capturado ahí. */
+    static String sinTelefono(String texto) {
+        return TELEFONO.matcher(texto).replaceAll("").strip();
     }
 
     /** 500001 → 5000-01 */

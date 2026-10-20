@@ -5,8 +5,7 @@ del **Estado de Cuenta Correos** contra los listados de la base **Carteras** (SQ
 manual *"1. Estado de Cuenta Correos"*.
 
 La validación la hace una persona: el sistema muestra la muestra escaneada junto al estado de cuenta
-**esperado** (calculado con las reglas del manual) y una lista de puntos a corroborar. La persona marca
-cada punto como Correcto / Error / No aplica y el resultado se guarda en un CSV.
+**esperado** (calculado con las reglas del manual, con el mismo acomodo que el impreso) para compararlos a la vista.
 
 Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no necesita instalar nada.
 
@@ -26,20 +25,14 @@ Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no
 1. Abrir `ValidadorEdoCta.exe`.
 2. **Abrir muestra...** y elegir el PDF escaneado (o una imagen). Se ve a la izquierda; con ◀ ▶ se cambia de página y con − + el zoom.
 3. Escribir el **número de cliente**, revisar la **fecha de corte** (por omisión el último día 20) y pulsar **Consultar**.
-4. Pestaña **Estado de cuenta esperado**: cómo debería verse el impreso, con el cálculo de bonificaciones.
+4. Pestaña **Estado de cuenta esperado**: cómo debería verse el impreso. Abajo vienen las notas del cálculo
+   (asteriscos, aviso importante, citatorio, situación especial) y el cálculo de bonificaciones.
    Los recuadros rojos son alertas (por ejemplo, una situación especial a la que no se le genera estado de cuenta).
-5. Pestaña **Puntos a revisar**: comparar cada valor esperado contra la muestra.
-   - Atajos sobre la fila: `1` = Correcto, `2` = Error, `3` = No aplica (pasa a la siguiente fila).
-   - Abajo se ve de dónde sale cada valor esperado.
-   - Los puntos en cursiva son solo visuales (QR, número de página...).
-6. **Guardar validación**. Exige que no queden pendientes y que cada Error tenga observación.
-   El dictamen es **APROBADO** si no hay errores y **RECHAZADO** si hay al menos uno.
-7. Pestaña **Listados**: lo que devolvió cada procedimiento, sin interpretar, y los avisos de la consulta.
-8. Botón **Modo oscuro / Modo claro** (arriba a la derecha): cambia los colores al momento. La elección se
+5. Pestaña **Listados**: lo que devolvió cada procedimiento, sin interpretar, y los avisos de la consulta.
+6. Botón **Modo oscuro / Modo claro** (arriba a la derecha): cambia los colores al momento. La elección se
    recuerda por usuario de Windows.
 
-Los resultados se guardan en `validaciones\validaciones-AAAA-MM.csv` (se abre en Excel): una fila por punto con
-fecha, usuario de Windows, cliente, corte, muestra, dictamen, resultado y observación.
+Cada mes hay que capturar la **leyenda de mercadotecnia** en `config.properties` (`leyenda.mercadotecnia=`).
 
 ---
 
@@ -57,18 +50,15 @@ com.coppel.validador
 │   ├── EstadoCuentaService          ← interfaz que usa la pantalla
 │   ├── SqlServerEstadoCuentaService ← ejecuta los procedimientos y mapea columnas → modelo
 │   ├── DemoEstadoCuentaService      ← datos de ejemplo sin BD (modo=demo)
-│   ├── Registro                     ← búsqueda tolerante de columnas
-│   └── BitacoraValidacionService    ← guarda los resultados en CSV
+│   └── Registro                     ← búsqueda tolerante de columnas
 ├── validacion/                      ← reglas del manual, sin BD ni pantallas (se prueban con JUnit)
 │   ├── CalculadoraEstadoCuenta      ← estado de cuenta esperado: [5]–[24]
 │   ├── CatalogoBonificaciones       ← factores de bonificación (bonificaciones.csv)
-│   ├── GeneradorPuntosRevision      ← lista de puntos a corroborar
-│   └── PuntoRevision, Formato, EstadoCuentaEsperado
+│   └── Formato, EstadoCuentaEsperado
 └── ui/                              ← solo Swing: no hace SQL ni cálculos
     ├── VentanaPrincipal
     ├── PanelMuestra                 ← visor del PDF escaneado (PDFBox)
     ├── PanelEstadoCuenta            ← estado de cuenta esperado
-    ├── PanelPuntosRevision          ← checklist
     ├── PanelListados                ← resultado crudo de los procedimientos
     └── Tema                         ← modo claro / oscuro (FlatLaf)
 ```
@@ -80,7 +70,7 @@ Regla: `ui` solo habla con `service` (datos) y `validacion` (reglas). `validacio
 | Punto | Regla |
 |---|---|
 | [2] | Solo incluye abonos hasta = fecha de corte |
-| [3] | Domicilio = calle # casa + depto. + rumbo + entre calles + complemento; colonia + municipio. Datos generales del directorio, cadena de cobranza (`AACPF0322` = puntualidad, puntualidad activa, estado civil, tipo de casa, sexo, ingreso, antigüedad), jefe de grupo, supervisor, centro (`5000-01`), zona (`100-0200`) |
+| [3] | Domicilio = calle # casa + depto. + rumbo + entre calles + complemento, partido a 50 caracteres; colonia + municipio en el último renglón. Nombre, ciudad abreviada (`ACYN`, de `CatCiudades`), situación especial impresa (`I35`). Datos generales del directorio, cadena de cobranza (`AACPF0322` = puntualidad, puntualidad activa, estado civil, tipo de casa, sexo, ingreso, antigüedad), jefe de grupo, supervisor, centro (`5000-01`), zona (`100-0200`) |
 | [5] | Fecha de compra = fecha de venta (muebles) o fecha última compra (ropa) |
 | [6] | Usted debe = saldo a la fecha + interés adicional. Usted debía = saldo + int. adic. mes anterior + abonos − compras. Interés adicional del renglón = `NuevoInteresCargado` |
 | [7] | Páguelo con solo = usted debe − bonificación, con bonificación = round(Int. s/compra × factor), tope el saldo a la fecha (`fnGeSaldaCon`). Factor del catálogo por cartera, plazo, días = (corte + 1 mes) − fecha de compra y vigencia (`fec_iniciobloque`). Préstamos: base `InteresFinanciamiento`, factor nuevo desde 20-jun-2024. Ropa sin saldo hace ≤ 30 días (`fec_sinsaldo`): interés completo. Sin bonificación con atraso |
@@ -89,7 +79,8 @@ Regla: `ui` solo habla con `service` (datos) y `validacion` (reglas). `validacio
 | [12]–[13] | Totales de todas las cuentas (se pintan hasta 5) |
 | [15] | INMEDIATO si puntualidad B, C, D, Z con vencido ≥ abono total, o A con vencido ≥ 2 abonos |
 | [16] | Asteriscos: `*` al corriente, `**` nuevo del mes, `***` A con atraso del 50% al 75% de dos abonos |
-| [18] | Citatorio CIT # 1/2/3/4/7 según abonos vencidos y puntualidad |
+| [18] | Citatorio CIT # 1/2/3/4/7 según abonos vencidos y puntualidad (solo como nota: el formato 2026 no lo imprime) |
+| Aviso importante | Marca 3MSC/NCE y leyenda según puntualidad y marca (deducido de las muestras) |
 | [19] | Tienda (4) + factura (6) `*` artículos de todas las cuentas menos ropa |
 | [20] | IR$ / IM$ / IB$ ... = suma de interés adicional por cartera |
 | [21]–[25] | Domiciliada, leyendas, página, monedas de abono puntual, QR (revisión visual) |
@@ -125,7 +116,6 @@ target\installer\ValidadorEdoCta\
 ├── bonificaciones.csv       ← catálogo de bonificaciones (editable, sin recompilar)
 ├── logo.png                 ← logo (opcional)
 ├── logs\                    ← se crea al abrir la app
-├── validaciones\            ← se crea al guardar la primera validación
 ├── app\                     ← jar de la aplicación
 └── runtime\                 ← Java embebido
 ```

@@ -7,8 +7,10 @@
 | Cuentas perdidas (CP) | Se calculan igual que las normales, sin bonificación y con `CP` en "fecha de último abono". En una muestra, el "usted debe" de una cuenta perdida no coincide con ninguna columna del listado. |
 | Deuda Bancoppel y Reestructura | No están en el catálogo de bonificaciones; se usa el `SaldaCon` del listado. El Excel de Calidad trae un factor de ejemplo (8.01% y 0.41) sin tabla completa. |
 | Citatorio (CIT) [18] | El validador lo calcula según el manual, pero ninguna muestra del formato 2026 lo imprime. Confirmar si sigue vigente. |
-| Cadena de cobranza | Falta saber qué es el número entre supervisor y centro (por ejemplo 3, 1175, 393). El manual menciona el año de nacimiento, pero las muestras no lo imprimen. |
-| Situación especial | Una muestra la imprime (por ejemplo I35) y otras no. Hoy es revisión visual. |
+| Cadena de cobranza | El manual menciona el año de nacimiento, pero las muestras no lo imprimen. |
+| Situación especial | Solo se imprime I35 en las muestras (I23, I41 y S50 no). Falta la lista completa de las que se imprimen (`SITUACIONES_IMPRESAS` en `CalculadoraEstadoCuenta`). |
+| Aviso importante | Las leyendas salen de 12 muestras (puntualidad Z, marcas 3MSC/NCE, puntualidad A). Los catálogos de leyendas de la base de laboratorio están vacíos. Falta la regla para B/C/D sin marca y para NTE. |
+| Teléfono en el complemento | Una muestra omite un teléfono de 10 dígitos capturado en el complemento; se generalizó a todos. |
 | Domiciliado [21] y domicilio certificado | No se identificaron las columnas de origen. |
 | Asteriscos [16] | La regla 3* del manual es ambigua ("atraso ≥ 50% del abono base y ≤ 75% dos abonos base"). Se interpretó como 50% de un abono a 75% de dos abonos. |
 | Atrasado [9] | El manual dice "= VENCIDO", pero las muestras muestran vencido + interés adicional (con tope en "usted debe"). Se implementó lo de las muestras. |
