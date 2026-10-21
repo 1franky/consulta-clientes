@@ -59,31 +59,41 @@ public final class Formato {
 
     /** Ancho del renglón del domicilio en el estado de cuenta. */
     static final int ANCHO_DOMICILIO = 50;
+    /** Lo que sigue después del corte se imprime hasta este largo; si no cabe se trunca con "*". */
+    static final int ANCHO_CONTINUACION = 45;
 
     private static final Pattern TELEFONO = Pattern.compile("(^|\\s)\\d{10}(?=\\s|$)");
 
     /**
-     * Domicilio como se imprime: calle # casa depto rumbo entre-calles complemento, partido en dos
-     * renglones de {@value #ANCHO_DOMICILIO} caracteres, y un último renglón con colonia y municipio.
+     * Domicilio como se imprime: calle # casa depto rumbo entre-calles complemento, y colonia + municipio.
+     * Cada uno se parte en dos renglones si pasa de {@value #ANCHO_DOMICILIO} caracteres (ver {@link #partir}).
      * Las partes vacías conservan su espacio, igual que en el impreso ("# 110   loc").
      */
     public static List<String> domicilio(Cliente c) {
         String linea = (c.calle().trim() + " # " + c.numeroCasa().trim() + " " + c.departamento().trim() + " "
                 + c.rumbo().trim() + " " + c.entreCalles().trim() + " " + sinTelefono(c.complemento().trim())).stripTrailing();
-        List<String> renglones = new ArrayList<>();
-        if (linea.length() > ANCHO_DOMICILIO) {
-            // Se corta en el último espacio dentro de los primeros 50 caracteres
-            int corte = linea.substring(0, ANCHO_DOMICILIO).lastIndexOf(' ');
-            if (corte <= 0) {
-                corte = ANCHO_DOMICILIO;
-            }
-            renglones.add(linea.substring(0, corte).stripTrailing());
-            renglones.add(linea.substring(corte).strip());
-        } else {
-            renglones.add(linea);
-        }
-        renglones.add((c.colonia().trim() + " " + c.municipio().trim()).strip());
+        List<String> renglones = new ArrayList<>(partir(linea));
+        renglones.addAll(partir((c.colonia().trim() + " " + c.municipio().trim()).strip()));
         return renglones;
+    }
+
+    /**
+     * Igual que el impresor (ImpresionXCentro, locationn): si pasa de 50 caracteres se corta en el último espacio
+     * dentro de los primeros 50; el resto va en el renglón siguiente, hasta 45 caracteres y con "*" si no cabe.
+     */
+    static List<String> partir(String linea) {
+        if (linea.length() <= ANCHO_DOMICILIO) {
+            return List.of(linea);
+        }
+        int corte = linea.substring(0, ANCHO_DOMICILIO).lastIndexOf(' ');
+        if (corte <= 0) {
+            corte = ANCHO_DOMICILIO;
+        }
+        String resto = linea.substring(corte).strip();
+        if (resto.length() > ANCHO_CONTINUACION) {
+            resto = resto.substring(0, ANCHO_CONTINUACION) + "*";
+        }
+        return List.of(linea.substring(0, corte).stripTrailing(), resto);
     }
 
     /** El complemento no imprime números de teléfono (10 dígitos) que se hayan capturado ahí. */

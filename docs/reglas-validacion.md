@@ -8,7 +8,8 @@ son los puntos del "Chequeo" del manual *1. Estado de Cuenta Correos*.
 
 Todas las reglas se compararon contra estados de cuenta impresos y escaneados (corte al 20-Sep-2026). Las que
 **no** vienen así en el manual, sino que se dedujeron de las muestras o del código de los procedimientos, se marcan
-con *(deducida)*.
+con *(deducida)*. Las marcadas *(impresor)* salen del código del programa que imprime los estados de cuenta
+(`EstadoCta`, `ImpresionXCentro.cs`), que solo acomoda en la hoja lo que la emisión ya calculó.
 
 ## Fechas
 
@@ -23,18 +24,19 @@ con *(deducida)*.
 | Dato | Origen (`spcQCDirectorio`) |
 |---|---|
 | Nombre | `NombreCompleto`, con sus espacios dobles. Si viene en NULL (el SP lo deja así cuando falta `cunombre2`), se arma con `cunombre1`, `cunombre2`, `cuapellidopaterno` y `cuapellidomaterno`. |
-| Domicilio *(deducida)* | `Calle # NumeroCasa DepartamentoCliente Rumbo cuentrecalles cucomplemento`, separados por un espacio aunque la parte esté vacía (`# 110   loc`). Si pasa de 50 caracteres se corta en el último espacio de los primeros 50 y el resto va en el segundo renglón. Del complemento se quitan los teléfonos de 10 dígitos. Se comprobó en las 12 muestras. |
-| Domicilio, último renglón *(deducida)* | `Colonia` + `MunicipioZona`. |
+| Domicilio *(deducida)* | `Calle # NumeroCasa DepartamentoCliente Rumbo cuentrecalles cucomplemento`, separados por un espacio aunque la parte esté vacía (`# 110   loc`). Del complemento se quitan los teléfonos de 10 dígitos. Se comprobó en las 12 muestras. |
+| Domicilio, renglones *(impresor)* | Si pasa de 50 caracteres se corta en el último espacio de los primeros 50; el resto va en el renglón siguiente, hasta 45 caracteres y con `*` al final si no cabe. |
+| Domicilio, colonia *(deducida)* | `Colonia` + `MunicipioZona`, partido igual que el domicilio si pasa de 50. |
 | Teléfono *(deducida)* | Solo `Telefono` (casa); las muestras no imprimen el celular. |
 | Número de cliente | Número + `Digito`. |
 | Cadena de cobranza | Puntualidad + puntualidad activa (`spcQCCredito`) + `EstadoCivil` + `TipoDeCasa` + `Sexo` + `IngresoMensual` (2 dígitos) + año de `Antiguedad` (2 dígitos). Ej. `AACPF0322`. |
-| Bloque de claves | Renglón 1: cliente + dígito, cadena, jefe de grupo. Renglón 2: supervisor, consecutivo, centro y situación especial. Renglón 3: ciudad abreviada y zona. |
+| Bloque de claves | Renglón 1: cliente + dígito, cadena, jefe de grupo. Renglón 2: supervisor, consecutivo, centro y situación especial. Renglón 3: ciudad abreviada, zona y tipo de encuesta (`tipoencuesta`, sin dato en los listados). |
 | Jefe de grupo / supervisor | `jefegrupo` / `supervisor`. |
 | Consecutivo *(deducida)* | Número entre supervisor y centro (2, 393, 1175...). Es el orden del estado de cuenta en el lote de impresión (sube con la zona y el domicilio), así que no se puede validar por cliente: el validador deja el hueco vacío. |
 | Ciudad abreviada | `CatCiudades.InicialCiudad` de la ciudad del cliente: `ACYN` = Acayucan (`sp.inicialCiudad`). |
 | Centro | `centro` con guion antes de los dos últimos dígitos: `500001` → `5000-01`. |
 | Zona *(deducida)* | `NumeroCiudad-NumeroColonia`, con la colonia a 4 dígitos: `100-0200`. |
-| Situación especial *(deducida)* | `SituacionEspecial` + `CausaSituacionEsp`. En las muestras solo se imprime `I35`; `I23`, `I41` y `S50` no. |
+| Situación especial | Como `proc_generacadenasituacionescliente`: situaciones de `Mae_ClientesSituaciones` de tipo 1 o incluidas en `Ctl_SubprocesosSituaciones` para el proceso, con clave + causa + motivo + persona, separadas por coma (`sp.situacionesImpresas`). Se usa área 5, proceso 18, que es la configuración que coincide con las muestras (solo `I35`); falta confirmar el proceso de la emisión correos. |
 | [4] Referencia | `NomCompletoRef`, `CalleReferencia`, `CasaDeReferencia`... Solo si el cliente tiene referencia. |
 
 ## Sus compras al detalle
@@ -85,17 +87,17 @@ Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificac
 | Punto | Regla |
 |---|---|
 | [13] Pase a pagar | Total de la columna "Pase a pagar". |
-| [15] Favor de pagar antes de | `INMEDIATO` si la puntualidad es B, C, D o Z y el vencido es ≥ al abono total, o si es A y el vencido es ≥ 2 abonos totales. Si no, la fecha del siguiente corte. |
+| [15] Favor de pagar antes de *(impresor)* | `INMEDIATO` si la puntualidad es B, C, D, Z o N y el **atrasado** total es ≥ al abono total, o si es A y es ≥ 2 abonos. Si no, el día 20 del mes siguiente (también en diciembre). Sin pase a pagar solo se imprime "Fecha:" con el corte. Con A y atraso entre 1 y 2 abonos, el impresor deja el renglón en blanco en los estados de cuenta 1 y 3 de la hoja y pone la fecha en el 2 y el 4. |
 | [16] Asteriscos | `**` cliente nuevo del mes; `*` al corriente (sin vencido); `***` puntualidad A con atraso entre 50% del abono y 75% de dos abonos; nada en otro caso. |
-| Aviso importante *(deducida)* | Puntualidad Z: "SU CUENTA ESTA A PUNTO DE PASAR AL DEPARTAMENTO LEGAL..." y no se imprime la marca. Marca 3MSC: "DEFINIR CON PAGOS". Marca NCE: "AL CLIENTE YA COMENZAMOS A CARGARLE INTERESES ADICIONALES". Puntualidad A: "POR SU PUNTUALIDAD USTED PUEDE LLEVAR LO QUE GUSTE A CREDITO...". Otros casos: sin muestra, se revisa a mano. |
+| Aviso importante *(deducida)* | En este orden: puntualidad Z: "SU CUENTA ESTA A PUNTO DE PASAR AL DEPARTAMENTO LEGAL..." y no se imprime la marca. "DEFINIR CON PAGOS" si alguna cuenta con saldo tiene plazo menor a 18 meses y 14 o más meses desde la compra (`fnPc2GeDeterminaLeyRecogerDefinirPagos`; no cuenta la de muebles que lleva la leyenda "recoger") o si se imprime la marca 3MSC (las 4 muestras con esta leyenda la traen; la regla de meses explica 3). Marca NCE: "AL CLIENTE YA COMENZAMOS A CARGARLE INTERESES ADICIONALES". Puntualidad A: "POR SU PUNTUALIDAD USTED PUEDE LLEVAR LO QUE GUSTE A CREDITO...". Otros casos: sin muestra, se revisa a mano. Coincide con las 12 muestras. |
 | [18] Citatorio | Abonos vencidos = vencido ÷ abono total. A/B con 1–2: CIT # 1; C/D con 1–2: CIT # 7; 3–4: CIT # 2; 5–6: CIT # 3; 7 o más: CIT # 4. No aplica con convenio activo. **En el formato 2026 no se observa: pendiente de confirmar.** |
 | [19] Facturas | Tienda (4 dígitos) + factura (6 dígitos) `*` número de artículos, de todas las cuentas menos ropa. |
-| [20] Interés adicional por cartera *(deducida)* | `I` + letra + `$` + suma del interés adicional total: R ropa, M muebles, B Deuda Bancoppel, P préstamos. |
-| [21] Domiciliada | `*_Domiciliada` en totales y `*` en cada cuenta domiciliada. **Columna de origen pendiente.** |
+| [20] Interés adicional por cartera *(impresor)* | En este orden: `IR`, `IP`, `IB`, `IM`, `IE`, `IT` (interés adicional total de ropa, préstamos, Deuda Bancoppel, muebles, reestructura y tiempo aire) y `R1`, `M1`, `E1` (`InteresAdicionalPrimerMes` de ropa, muebles y reestructura). Solo los que no son 0. |
+| [21] Domiciliada *(impresor)* | `*_Domiciliada` bajo los totales si la descripción de algún artículo del detalle empieza con `*` (o la cuenta trae la columna `Domiciliada`). En los listados del laboratorio no aparece. |
 | [22] Centro de Atención | Texto fijo: `Dudas o comentarios llama al Centro de Atención al Cliente:800 220 7735`. |
-| [24] Monedas | Número de abonos puntuales (`Desc_Corte` = "Corte N"). |
-| Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`. |
-| Marca de contacto | `3MSC`, `NTE` o `NCE` según las banderas de `tmp_clientenocontactado`. |
+| [24] Monedas *(impresor)* | Número de abonos puntuales (`Desc_Corte` = "Corte N"), máximo 4. Sin saldo de dinero electrónico no se rellena ninguna. |
+| Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`; con saldo 0 no se imprime importe. |
+| Marca de contacto *(impresor)* | `3MSC`, `NTE` o `NCE` según las banderas de `tmp_clientenocontactado`. Solo se imprime si el cliente debe y tiene atrasado. |
 | [17] Leyenda de mercadotecnia | Se valida contra la carpeta compartida `\Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas Mercadotecnia\<año>` (las capturadas del 16 al 20); el validador solo lo indica. |
 | [14], [23], [25] | Revisión visual: teléfono de tienda, número de página y código QR. |
 

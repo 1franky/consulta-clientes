@@ -10,10 +10,11 @@ import java.util.List;
  *
  * @param renglones          todas las cuentas que se cobran (el estado de cuenta pinta solo las primeras 5)
  * @param asteriscos         "*", "**", "***" o vacío [16]
- * @param favorPagarAntesDe  "INMEDIATO" o la fecha [15]
+ * @param favorPagarAntesDe  "INMEDIATO", la fecha [15], o vacío si no hay pase a pagar (se imprime "Fecha:")
  * @param facturas           tienda + factura * artículos [19]
  * @param interesesCartera   IR$..., IM$... [20]
  * @param citatorio          "CIT # n" o vacío [18]; el formato 2026 no lo imprime
+ * @param domiciliada        "*_Domiciliada" bajo los totales [21]
  * @param marcaContacto      3MSC, NTE o NCE arriba de "AVISO IMPORTANTE", o vacío
  * @param avisoImportante    leyenda bajo "AVISO IMPORTANTE:"; vacía si no se pudo determinar
  * @param situacionEspecial  situación y causa que se imprimen junto al centro (I35), o vacío
@@ -22,6 +23,7 @@ import java.util.List;
 public record EstadoCuentaEsperado(
         String soloIncluyeAbonosHasta,
         String favorPagarAntesDe,
+        String explicacionFavorPagar,
         String asteriscos,
         String explicacionAsteriscos,
         List<Renglon> renglones,
@@ -36,6 +38,7 @@ public record EstadoCuentaEsperado(
         String situacionEspecial,
         long saldoDineroElectronico,
         int monedasAbonoPuntual,
+        boolean domiciliada,
         List<String> alertas) {
 
     public static final int MAX_RENGLONES = 5;

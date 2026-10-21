@@ -82,12 +82,12 @@ Regla: `ui` solo habla con `service` (datos) y `validacion` (reglas). `validacio
 | [8]–[10] | Abono mensual; atrasado = vencido + interés adicional (tope usted debe); pase a pagar = abono + atrasado (tope usted debe) |
 | [11] | Fecha de último abono = fec. ult. movto (vacía si el último movimiento fue la compra; `CP` en cuentas perdidas) |
 | [12]–[13] | Totales de todas las cuentas (se pintan hasta 5) |
-| [15] | INMEDIATO si puntualidad B, C, D, Z con vencido ≥ abono total, o A con vencido ≥ 2 abonos |
+| [15] | INMEDIATO si puntualidad B, C, D, Z, N con atrasado ≥ abono total, o A con atrasado ≥ 2 abonos; sin pase a pagar solo "Fecha:" |
 | [16] | Asteriscos: `*` al corriente, `**` nuevo del mes, `***` A con atraso del 50% al 75% de dos abonos |
 | [18] | Citatorio CIT # 1/2/3/4/7 según abonos vencidos y puntualidad (solo como nota: el formato 2026 no lo imprime) |
-| Aviso importante | Marca 3MSC/NCE y leyenda según puntualidad y marca (deducido de las muestras) |
+| Aviso importante | Z: legal; "DEFINIR CON PAGOS" por plazo 12 con 14+ meses o marca 3MSC; NCE; A. La marca solo se imprime con atrasado |
 | [19] | Tienda (4) + factura (6) `*` artículos de todas las cuentas menos ropa |
-| [20] | IR$ / IM$ / IB$ ... = suma de interés adicional por cartera |
+| [20] | IR$ IP$ IB$ IM$ IE$ IT$ (interés adicional por cartera) y R1$ M1$ E1$ (interés del primer mes) |
 | [21]–[25] | Domiciliada, leyendas, página, monedas de abono puntual, QR (revisión visual) |
 | Alertas | Situación especial L, M, X, F, P23, P71–P74; `NoEnviarEdoCta` sin vencido; convenio de devolución; más de 5 cuentas |
 

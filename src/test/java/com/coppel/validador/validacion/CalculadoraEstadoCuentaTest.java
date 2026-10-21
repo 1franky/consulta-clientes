@@ -110,6 +110,38 @@ class CalculadoraEstadoCuentaTest {
     }
 
     @Test
+    void definirConPagosPorPlazoDe12MesesCon14MesesDesdeLaCompraAunqueNoHayaMarca() {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_CON_ATRASO, CORTE);
+        ExpedienteCliente sinMarca = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(),
+                exp.dineroElectronico(), List.of(), List.of(), List.of(), List.of());
+        EstadoCuentaEsperado esp = calculadora.calcular(sinMarca);
+        // ROPA comprada el 27-Feb-25: 19 meses al 20-Sep-26, plazo 12
+        assertEquals(CalculadoraEstadoCuenta.AVISO_DEFINIR_PAGOS, esp.avisoImportante());
+        assertTrue(esp.explicacionAviso().startsWith("ROPA"), esp.explicacionAviso());
+        assertEquals(19, CalculadoraEstadoCuenta.mesesTranscurridos(LocalDate.of(2025, 2, 27), CORTE));
+    }
+
+    @Test
+    void laMarcaNoSeImprimeSinAtrasadoYElDineroElectronicoSinSaldoNoLlevaMonedas() {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        ExpedienteCliente conMarca = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(),
+                new ExpedienteCliente.DineroElectronico(0, 3), List.of(), List.of("NCE: NO CUENTA CON CORREO"),
+                List.of(), List.of());
+        EstadoCuentaEsperado esp = calculadora.calcular(conMarca);
+        assertEquals("", esp.marcaContacto());
+        assertTrue(esp.explicacionAviso().contains("NCE"), esp.explicacionAviso());
+        assertEquals(0, esp.monedasAbonoPuntual());
+    }
+
+    @Test
+    void situacionesImpresasDeLaBase() {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        ExpedienteCliente otro = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(), exp.dineroElectronico(),
+                List.of(), List.of(), List.of(), List.of(), List.of("I35", "S50AB"));
+        assertEquals("I35,S50AB", calculadora.calcular(otro).situacionEspecial());
+    }
+
+    @Test
     void situacionEspecialExcluida() {
         ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
         var cliente = exp.cliente();

@@ -160,12 +160,21 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 }
             }
 
+            List<String> situacionesImpresas = new ArrayList<>();
+            for (Registro r : consulta.ejecutar("situacionesImpresas", "Situaciones impresas")) {
+                String situacion = Registro.aTexto(r.opcional("situacion", "situacion")).strip();
+                if (!situacion.isEmpty()) {
+                    situacionesImpresas.add(situacion);
+                }
+            }
+
             LOG.info("[" + db.nombre() + "] Cliente " + numeroCliente + ": " + cuentas.size() + " cuenta(s), "
                     + avisos.size() + " aviso(s) en " + (System.nanoTime() - inicio) / 1_000_000 + " ms");
             for (String aviso : avisos) {
                 LOG.warning("[" + numeroCliente + "] " + aviso);
             }
-            return new ExpedienteCliente(fechaCorte, cliente, cuentas, dinero, situaciones, marcas, listados, avisos);
+            return new ExpedienteCliente(fechaCorte, cliente, cuentas, dinero, situaciones, marcas, listados, avisos,
+                    situacionesImpresas);
         } catch (SQLException e) {
             LOG.log(Level.SEVERE, "[" + db.nombre() + "] Error de conexión consultando el cliente " + numeroCliente
                     + " (SQLState " + e.getSQLState() + ", código " + e.getErrorCode() + ")", e);
@@ -317,7 +326,14 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 Registro.aFecha(r.opcional("fechaSinSaldo", "fec_sinsaldo")),
                 Registro.aFecha(r.opcional("fechaConvenio", "FechaDelConvenio", "FechaConvenio")) != null,
                 Registro.aFecha(convenioDevolucion) != null || Registro.aBooleano(convenioDevolucion),
-                Registro.aBooleano(r.opcional("domiciliada", "Domiciliada", "CuentaDomiciliada")));
+                Registro.aBooleano(r.opcional("domiciliada", "Domiciliada", "CuentaDomiciliada")),
+                Registro.aEntero(r.opcional("interesPrimerMes", "InteresAdicionalPrimerMes")),
+                Registro.aEntero(r.opcional("importeVenta", "ImporteVenta")),
+                Registro.aEntero(r.opcional("enganche", "Enganche")),
+                Registro.aTexto(r.opcional("tipoUltimoMovimiento", "TipoUltimoMov")),
+                Registro.aFecha(r.opcional("fechaConvenio", "FechaDelConvenio", "FechaConvenio")),
+                Registro.aEntero(r.opcional("importeConvenio", "ImporteDelConvenio")),
+                (int) Registro.aEntero(r.opcional("plazoConvenio", "PlazoDelConvenio")));
     }
 
     /** tmpDineroElectronico3: saldo y "Corte N" de abonos puntuales. */

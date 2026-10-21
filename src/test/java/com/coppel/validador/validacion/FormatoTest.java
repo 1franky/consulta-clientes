@@ -33,6 +33,19 @@ class FormatoTest {
     }
 
     @Test
+    void laContinuacionSeTruncaA45ConAsteriscoYLaColoniaTambienSeParte() {
+        Cliente c = cliente("AVENIDA", "10", "", "", "ENTRE CALLE PRIMERA", "Y CALLE SEGUNDA FRENTE A LA PLAZA "
+                + "PRINCIPAL DEL PUEBLO", "FRACCIONAMIENTO RESIDENCIAL LOS ARCOS PONIENTE", "MUNICIPIO GRANDE");
+        List<String> d = Formato.domicilio(c);
+        assertEquals(4, d.size(), d.toString());
+        assertEquals("AVENIDA # 10   ENTRE CALLE PRIMERA Y CALLE", d.get(0));
+        assertEquals("SEGUNDA FRENTE A LA PLAZA PRINCIPAL DEL PUEBL*", d.get(1));
+        assertEquals("FRACCIONAMIENTO RESIDENCIAL LOS ARCOS PONIENTE", d.get(2));
+        assertEquals("MUNICIPIO GRANDE", d.get(3));
+        assertEquals(List.of("X".repeat(10), "Y".repeat(45) + "*"), Formato.partir("X".repeat(10) + " " + "Y".repeat(46)));
+    }
+
+    @Test
     void elComplementoNoImprimeTelefonos() {
         Cliente c = cliente("JUAREZ", "5", "EXT", "", "", "KSA AZUL 9240000000 COL CENTRO", "CENTRO", "PUEBLO");
         assertEquals("JUAREZ # 5 EXT   KSA AZUL COL CENTRO", Formato.domicilio(c).get(0));

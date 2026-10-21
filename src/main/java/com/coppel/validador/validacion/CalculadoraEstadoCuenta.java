@@ -40,8 +40,13 @@ public final class CalculadoraEstadoCuenta {
     static final String AVISO_PUNTUALIDAD = "POR SU PUNTUALIDAD USTED PUEDE LLEVAR LO QUE GUSTE A CREDITO. "
             + "LO FELICITAMOS POR SER UN CLIENTE CUMPLIDO.";
 
-    /** Situaciones especiales que aparecen impresas junto al centro; I23, I41 y S50 no se imprimen. */
+    /** Sin consulta a la base (modo demo): las muestras solo imprimen I35; I23, I41 y S50 no. */
     private static final Set<String> SITUACIONES_IMPRESAS = Set.of("I35");
+
+    /** El impresor tiene lugar para 4 monedas de abono puntual. */
+    public static final int MAX_MONEDAS = 4;
+    /** fnGeConvenioVigente: días que dura vigente un convenio. */
+    private static final int DIAS_CONVENIO_VIGENTE = 45;
 
     public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo) {
         this.catalogo = catalogo;
@@ -74,13 +79,26 @@ public final class CalculadoraEstadoCuenta {
         long vencidoTotal = exp.cuentas().stream().filter(c -> !c.convenioDevolucion()).mapToLong(Cuenta::vencido).sum();
         String puntualidad = cliente.puntualidad().toUpperCase();
 
-        // [15] Favor de pagar antes de
-        boolean inmediato = switch (puntualidad) {
-            case "A" -> totales.abonoMensual() > 0 && vencidoTotal >= 2 * totales.abonoMensual();
-            case "B", "C", "D", "Z" -> totales.abonoMensual() > 0 && vencidoTotal >= totales.abonoMensual();
-            default -> false;
-        };
-        String favorPagar = inmediato ? "INMEDIATO" : Formato.fechaLarga(siguienteCorte);
+        // [15] Favor de pagar antes de: el impresor compara el atrasado impreso contra el abono mensual
+        long atrasado = totales.atrasado();
+        long abono = totales.abonoMensual();
+        String favorPagar;
+        String explicacionFavor;
+        if (totales.paseAPagar() == 0) {
+            favorPagar = "";
+            explicacionFavor = "Sin pase a pagar: solo se imprime \"Fecha:\" con el corte";
+        } else if ((puntualidad.equals("A") && atrasado >= 2 * abono)
+                || (Set.of("B", "C", "D", "Z", "N").contains(puntualidad) && atrasado >= abono)) {
+            favorPagar = "INMEDIATO";
+            explicacionFavor = "Puntualidad " + puntualidad + ", atrasado $" + Formato.importeConCero(atrasado)
+                    + (puntualidad.equals("A") ? " ≥ 2 abonos" : " ≥ abono") + " ($" + Formato.importeConCero(abono) + ")";
+        } else {
+            favorPagar = Formato.fechaLarga(siguienteCorte);
+            explicacionFavor = puntualidad.equals("A") && atrasado > abono && atrasado < 2 * abono
+                    ? "Puntualidad A con atraso entre 1 y 2 abonos: el impresor deja este renglón en blanco en los "
+                    + "estados de cuenta 1 y 3 de la hoja y pone la fecha en el 2 y el 4"
+                    : "Día 20 del mes siguiente";
+        }
 
         // [16] Asteriscos
         String asteriscos;
@@ -124,17 +142,27 @@ public final class CalculadoraEstadoCuenta {
             explicacionCit = abonosVencidos + " abono(s) vencido(s), puntualidad " + puntualidad;
         }
 
-        // Marca de contacto y AVISO IMPORTANTE (deducidos de las muestras de 2026)
+        // Marca de contacto: el impresor solo la pinta si el cliente debe y tiene atrasado
         String marca = exp.marcasContacto().isEmpty() ? "" : exp.marcasContacto().get(0).split(":")[0].trim();
+        String marcaListado = marca;
+        if (totales.ustedDebe() == 0 || atrasado == 0) {
+            marca = "";
+        }
+        // AVISO IMPORTANTE: textos de las muestras de 2026; "DEFINIR CON PAGOS" con la regla de la emisión
+        Renglon cuentaDefinir = cuentaDefinirConPagos(renglones, corte);
         String aviso;
         String explicacionAviso;
         if (puntualidad.equals("Z")) {
             marca = ""; // con puntualidad Z las muestras no imprimen la marca
             aviso = AVISO_LEGAL;
             explicacionAviso = "Puntualidad Z";
-        } else if (marca.equals("3MSC")) {
+        } else if (cuentaDefinir != null || marca.equals("3MSC")) {
+            // Las 4 muestras con esta leyenda traen 3MSC; la regla de la emisión explica 3 de ellas
             aviso = AVISO_DEFINIR_PAGOS;
-            explicacionAviso = "Marca 3MSC";
+            explicacionAviso = cuentaDefinir != null
+                    ? cuentaDefinir.articulo() + " a plazo de 12 meses comprada el " + cuentaDefinir.fechaCompra()
+                    + " (14 o más meses)" + (marca.equals("3MSC") ? " y marca 3MSC" : "")
+                    : "Marca 3MSC";
         } else if (marca.equals("NCE")) {
             aviso = AVISO_INTERESES;
             explicacionAviso = "Marca NCE";
@@ -146,9 +174,17 @@ public final class CalculadoraEstadoCuenta {
             explicacionAviso = "Puntualidad " + puntualidad + (marca.isEmpty() ? " sin marca" : " con marca " + marca)
                     + ": no hay muestra con este caso, revisar la leyenda a mano";
         }
+        if (!marcaListado.isEmpty() && marca.isEmpty() && !puntualidad.equals("Z")) {
+            explicacionAviso += ". La marca " + marcaListado + " no se imprime porque el cliente no tiene atrasado";
+        }
 
-        String situacion = cliente.situacionEspecial().trim() + cliente.causaSituacion().trim();
-        String situacionImpresa = SITUACIONES_IMPRESAS.contains(situacion) ? situacion : "";
+        String situacionImpresa;
+        if (exp.situacionesImpresas() != null) {
+            situacionImpresa = String.join(",", exp.situacionesImpresas());
+        } else {
+            String situacion = cliente.situacionEspecial().trim() + cliente.causaSituacion().trim();
+            situacionImpresa = SITUACIONES_IMPRESAS.contains(situacion) ? situacion : "";
+        }
 
         // [19] Tienda + factura * artículos (todas las cuentas menos ropa)
         String facturas = renglones.stream()
@@ -157,16 +193,36 @@ public final class CalculadoraEstadoCuenta {
                 .map(c -> String.format("%04d%06d*%d", c.numeroTienda(), c.numeroFactura(), c.numeroArticulos()))
                 .collect(Collectors.joining(" "));
 
-        // [20] Interés adicional por cartera
-        Map<Character, Long> intereses = new LinkedHashMap<>();
+        // [20] Interés adicional por cartera y del primer mes, en el orden del impresor
+        Map<String, Long> intereses = new LinkedHashMap<>();
+        for (String clave : List.of("IR", "IP", "IB", "IM", "IE", "IT", "R1", "M1", "E1")) {
+            intereses.put(clave, 0L);
+        }
         for (Renglon r : renglones) {
-            if (r.cuenta().interesAdicional() > 0) {
-                intereses.merge(r.cuenta().tipo().letraInteres(), r.cuenta().interesAdicional(), Long::sum);
+            Cuenta c = r.cuenta();
+            intereses.merge("I" + c.tipo().letraInteres(), c.interesAdicional(), Long::sum);
+            String primerMes = switch (c.tipo()) {
+                case ROPA -> "R1";
+                case MUEBLES -> "M1";
+                case REESTRUCTURA -> "E1";
+                default -> null;
+            };
+            if (primerMes != null) {
+                intereses.merge(primerMes, c.interesPrimerMes(), Long::sum);
             }
         }
         String interesesCartera = intereses.entrySet().stream()
-                .map(e -> "I" + e.getKey() + "$" + Formato.importeConCero(e.getValue()))
+                .filter(e -> e.getValue() != 0)
+                .map(e -> e.getKey() + "$" + Formato.importeConCero(e.getValue()))
                 .collect(Collectors.joining("   "));
+
+        // [21] El impresor pinta "*_Domiciliada" si algún artículo del detalle empieza con "*"
+        boolean domiciliada = renglones.subList(0, Math.min(EstadoCuentaEsperado.MAX_RENGLONES, renglones.size()))
+                .stream().anyMatch(r -> r.articulo().strip().startsWith("*") || r.cuenta().domiciliada());
+
+        // Dinero electrónico: sin saldo no se rellena ninguna moneda
+        long saldoDe = exp.dineroElectronico().saldo();
+        int monedas = saldoDe > 0 ? Math.min(MAX_MONEDAS, exp.dineroElectronico().abonosPuntuales()) : 0;
 
         alertas.addAll(alertasSituacion(cliente, exp.situacionesEspeciales()));
         if (cliente.noEnviarEdoCta() && vencidoTotal == 0) {
@@ -183,6 +239,7 @@ public final class CalculadoraEstadoCuenta {
         return new EstadoCuentaEsperado(
                 Formato.fechaLarga(corte),
                 favorPagar,
+                explicacionFavor,
                 asteriscos,
                 explicacion,
                 renglones,
@@ -195,9 +252,47 @@ public final class CalculadoraEstadoCuenta {
                 aviso,
                 explicacionAviso,
                 situacionImpresa,
-                exp.dineroElectronico().saldo(),
-                exp.dineroElectronico().abonosPuntuales(),
+                saldoDe,
+                monedas,
+                domiciliada,
                 alertas);
+    }
+
+    /**
+     * Primera cuenta con la leyenda "DEFINIR CON PAGOS" según fnPc2GeDeterminaLeyRecogerDefinirPagos: plazo menor a
+     * 18 meses (fun_validarplazo = 12) y 14 o más meses desde la venta (fnGeMesesTranscurridos). No aplica a la
+     * cuenta de muebles que ya lleva la leyenda "recoger": debe 50% o más de la venta y tiene 3 o más abonos
+     * vencidos sin abonar desde la venta, o 5 o más con abonos o convenio vigente. Los abonos vencidos se aproximan
+     * con vencido / abono mensual (la emisión usa AbonosYMesesVencidos). Sin cuentas perdidas.
+     */
+    private static Renglon cuentaDefinirConPagos(List<Renglon> renglones, LocalDate corte) {
+        for (Renglon r : renglones) {
+            Cuenta c = r.cuenta();
+            if (c.cuentaPerdida() || r.ustedDebe() <= 0 || c.fechaCompra() == null || c.plazo() >= 18
+                    || mesesTranscurridos(c.fechaCompra(), corte) < 14) {
+                continue;
+            }
+            if (c.tipo() == TipoCartera.MUEBLES) {
+                boolean abono = !((c.fechaCompra().equals(c.fechaUltimoMovimiento())
+                        && !c.tipoUltimoMovimiento().strip().equals("5"))
+                        || c.importeVenta() - c.enganche() == c.saldoFecha());
+                boolean convenio = c.fechaConvenio() != null && c.importeConvenio() > 0 && c.plazoConvenio() > 0
+                        && ChronoUnit.DAYS.between(c.fechaConvenio(), corte) <= DIAS_CONVENIO_VIGENTE;
+                long porcentajeDeuda = c.importeVenta() > 0 ? (long) (r.ustedDebe() * 100.0 / c.importeVenta()) : 0;
+                long abonosVencidos = c.abonoMensual() > 0 ? c.vencido() / c.abonoMensual() : 0;
+                if (porcentajeDeuda >= 50 && ((abonosVencidos >= 3 && !abono && !convenio)
+                        || (abonosVencidos >= 5 && (abono || convenio)))) {
+                    continue; // leyenda "recoger"
+                }
+            }
+            return r;
+        }
+        return null;
+    }
+
+    /** fnGeMesesTranscurridos: diferencia de meses calendario, sin contar días. */
+    static long mesesTranscurridos(LocalDate venta, LocalDate corte) {
+        return Math.max(0, (corte.getYear() - venta.getYear()) * 12L + corte.getMonthValue() - venta.getMonthValue());
     }
 
     /** Ropa primero y después las demás cuentas en el orden de los listados. */

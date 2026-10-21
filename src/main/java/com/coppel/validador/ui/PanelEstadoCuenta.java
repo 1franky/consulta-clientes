@@ -2,6 +2,7 @@ package com.coppel.validador.ui;
 
 import com.coppel.validador.model.Cliente;
 import com.coppel.validador.model.ExpedienteCliente;
+import com.coppel.validador.validacion.CalculadoraEstadoCuenta;
 import com.coppel.validador.validacion.EstadoCuentaEsperado;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Bonificacion;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Renglon;
@@ -121,9 +122,11 @@ public class PanelEstadoCuenta extends JPanel {
                 .append("<tr><td align='center' bgcolor='" + p.recuadro() + "'><font size='6'><b>$ ")
                 .append(Formato.importeConCero(esp.totales().paseAPagar())).append("</b></font></td></tr>")
                 .append("<tr><td bgcolor='" + p.recuadro() + "'>")
-                .append(esp.favorPagarAntesDe().equals("INMEDIATO") ? "Favor de pagar de <b>INMEDIATO</b>"
+                .append(esp.favorPagarAntesDe().isEmpty() ? "&nbsp;"
+                        : esp.favorPagarAntesDe().equals("INMEDIATO") ? "Favor de pagar de <b>INMEDIATO</b>"
                         : "Favor de pagar antes de: <b>" + e(esp.favorPagarAntesDe()) + "</b>")
-                .append("</td></tr><tr><td bgcolor='" + p.recuadro() + "'>Solo incluye abonos hasta: <b>")
+                .append("</td></tr><tr><td bgcolor='" + p.recuadro() + "'>")
+                .append(esp.favorPagarAntesDe().isEmpty() ? "Fecha: <b>" : "Solo incluye abonos hasta: <b>")
                 .append(e(esp.soloIncluyeAbonosHasta())).append("</b></td></tr>")
                 .append("<tr><td align='center'><b>Dinero Electrónico</b></td></tr>")
                 .append("<tr><td align='center' bgcolor='" + p.recuadro() + "'>Saldo actual<br><b>")
@@ -164,7 +167,7 @@ public class PanelEstadoCuenta extends JPanel {
                 .append(total(t.ustedDebia())).append(total(t.menosAbonos())).append(total(t.masCompras()))
                 .append(total(t.interesAdicional())).append(total(t.ustedDebe())).append(total(t.pagueloConSolo()))
                 .append(total(t.abonoMensual())).append(total(t.atrasado())).append(total(t.paseAPagar()))
-                .append("<td>").append(exp.cliente().domiciliado() ? "*_Domiciliada" : "").append("</td></tr>");
+                .append("<td>").append(esp.domiciliada() ? "*_Domiciliada" : "").append("</td></tr>");
         sb.append("</table>");
         if (esp.renglones().size() > EstadoCuentaEsperado.MAX_RENGLONES) {
             sb.append("<i>Se muestran ").append(EstadoCuentaEsperado.MAX_RENGLONES).append(" de ")
@@ -192,6 +195,7 @@ public class PanelEstadoCuenta extends JPanel {
 
         // Lo que no se imprime pero ayuda a revisar
         sb.append("<br><b>Notas del cálculo</b><ul>")
+                .append("<li>Favor de pagar [15]: ").append(e(esp.explicacionFavorPagar())).append("</li>")
                 .append("<li>Asteriscos [16]: ").append(e(esp.explicacionAsteriscos())).append("</li>")
                 .append("<li>Aviso importante: ").append(e(esp.explicacionAviso())).append("</li>")
                 .append("<li>Citatorio [18] según el manual: ")
@@ -242,7 +246,7 @@ public class PanelEstadoCuenta extends JPanel {
 
     private static String monedas(int n) {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < Math.max(4, n); i++) {
+        for (int i = 0; i < CalculadoraEstadoCuenta.MAX_MONEDAS; i++) {
             sb.append(i < n ? "● " : "○ ");
         }
         return sb.toString();
