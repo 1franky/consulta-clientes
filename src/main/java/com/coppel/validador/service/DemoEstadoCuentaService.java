@@ -32,7 +32,7 @@ public final class DemoEstadoCuentaService implements EstadoCuentaService {
 
     @Override
     public Optional<LocalDate> fechaDatos() {
-        return Optional.empty();
+        return Optional.of(LocalDate.of(2026, 9, 20)); // corte de las muestras que reproduce
     }
 
     @Override

@@ -29,7 +29,6 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -51,7 +50,7 @@ public class VentanaPrincipal extends JFrame {
     private final CalculadoraEstadoCuenta calculadora;
 
     private final JTextField txtCliente = new JTextField(12);
-    private final JTextField txtCorte = new JTextField(9);
+    private final JLabel lblCorte = new JLabel("Corte: ...");
     private final JLabel lblDatos = new JLabel();
     private final JButton btnConsultar = new JButton("Consultar");
     private final JButton btnTema = new JButton();
@@ -68,16 +67,12 @@ public class VentanaPrincipal extends JFrame {
         this.calculadora = calculadora;
         this.panelEstadoCuenta = new PanelEstadoCuenta();
 
-        txtCorte.setText(FECHA.format(corteSugerido(LocalDate.now())));
-        txtCorte.setToolTipText("Fecha de corte (dd/mm/aaaa)");
-
         JPanel formulario = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
         formulario.add(new JLabel("Número de cliente:"));
         formulario.add(txtCliente);
-        formulario.add(new JLabel("Corte:"));
-        formulario.add(txtCorte);
-        formulario.add(lblDatos);
         formulario.add(btnConsultar);
+        formulario.add(lblCorte);
+        formulario.add(lblDatos);
 
         btnTema.addActionListener(e -> cambiarTema());
         actualizarBotonTema();
@@ -117,7 +112,7 @@ public class VentanaPrincipal extends JFrame {
         cargarFechaDatos();
     }
 
-    /** Al abrir, toma el corte de catFechas; si no hay base (demo) o falla, el corte se captura a mano. */
+    /** Al abrir, muestra el corte que se usará (de catFechas). */
     private void cargarFechaDatos() {
         new SwingWorker<Optional<LocalDate>, Void>() {
             @Override
@@ -128,7 +123,7 @@ public class VentanaPrincipal extends JFrame {
             @Override
             protected void done() {
                 try {
-                    get().ifPresent(VentanaPrincipal.this::mostrarFechaDatos);
+                    mostrarCorte(get());
                 } catch (InterruptedException | ExecutionException e) {
                     Throwable causa = e.getCause() != null ? e.getCause() : e;
                     LOG.log(Level.WARNING, "No se pudo leer catFechas", causa);
@@ -138,14 +133,19 @@ public class VentanaPrincipal extends JFrame {
     }
 
     /**
-     * El corte sale de catFechas y no se edita: los procedimientos calculan con esa fecha, así que otro corte
-     * mezclaría dos meses. Si los datos son de días posteriores al corte, se avisa.
+     * El corte sale de catFechas y no se captura: los procedimientos calculan con esa fecha, así que otro corte
+     * mezclaría dos meses. Sin catFechas se usa el último día 20. Si los datos son posteriores al corte, se avisa.
      */
-    private void mostrarFechaDatos(LocalDate datos) {
-        LocalDate corte = corteSugerido(datos);
-        txtCorte.setText(FECHA.format(corte));
-        txtCorte.setEditable(false);
-        txtCorte.setToolTipText("Corte tomado de catFechas (" + FECHA.format(datos) + "); no se captura");
+    static LocalDate corte(Optional<LocalDate> datos) {
+        return corteSugerido(datos.orElse(LocalDate.now()));
+    }
+
+    private void mostrarCorte(Optional<LocalDate> fechaDatos) {
+        LocalDate corte = corte(fechaDatos);
+        lblCorte.setText("Corte: " + FECHA.format(corte));
+        lblCorte.setToolTipText(fechaDatos.isPresent() ? "Último día 20 hasta catFechas ("
+                + FECHA.format(fechaDatos.get()) + ")" : "Sin catFechas: último día 20 hasta hoy");
+        LocalDate datos = fechaDatos.orElse(corte);
         if (datos.equals(corte)) {
             lblDatos.setText("");
             lblDatos.setToolTipText(null);
@@ -184,14 +184,6 @@ public class VentanaPrincipal extends JFrame {
             return;
         }
         long numeroCliente = Long.parseLong(texto);
-        LocalDate corteCapturado;
-        try {
-            corteCapturado = LocalDate.parse(txtCorte.getText().trim(), FECHA);
-        } catch (DateTimeParseException e) {
-            lblEstado.setText("La fecha de corte debe tener el formato dd/mm/aaaa.");
-            txtCorte.requestFocus();
-            return;
-        }
 
         btnConsultar.setEnabled(false);
         lblEstado.setText("Consultando cliente " + numeroCliente + " en " + service.origen() + "...");
@@ -203,8 +195,7 @@ public class VentanaPrincipal extends JFrame {
             protected Resultado doInBackground() throws Exception {
                 // catFechas se vuelve a leer: cambia cada día y la ventana puede seguir abierta
                 Optional<LocalDate> datos = service.fechaDatos();
-                LocalDate corte = datos.map(VentanaPrincipal::corteSugerido).orElse(corteCapturado);
-                ExpedienteCliente exp = service.consultar(numeroCliente, corte);
+                ExpedienteCliente exp = service.consultar(numeroCliente, corte(datos));
                 return new Resultado(datos, exp, calculadora.calcular(exp));
             }
 
@@ -213,7 +204,7 @@ public class VentanaPrincipal extends JFrame {
                 btnConsultar.setEnabled(true);
                 try {
                     Resultado r = get();
-                    r.fechaDatos().ifPresent(VentanaPrincipal.this::mostrarFechaDatos);
+                    mostrarCorte(r.fechaDatos());
                     panelEstadoCuenta.mostrar(r.expediente(), r.esperado());
                     panelListados.mostrar(r.expediente());
                     int avisos = r.expediente().avisos().size();

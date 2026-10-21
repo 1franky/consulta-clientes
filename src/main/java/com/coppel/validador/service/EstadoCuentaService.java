@@ -16,7 +16,7 @@ public interface EstadoCuentaService {
 
     /**
      * Fecha a la que están los datos de la base (catFechas). Los procedimientos calculan con ella, no con la
-     * fecha de corte que reciben. Vacío si el origen no la tiene (modo demo): entonces la captura la persona.
+     * fecha de corte que reciben. Vacío si no se pudo leer.
      */
     Optional<LocalDate> fechaDatos() throws Exception;
 
