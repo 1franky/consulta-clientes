@@ -27,5 +27,6 @@
 
 - Los procedimientos usan tablas `tmp*` compartidas. El `ROLLBACK` por listado evita lecturas cruzadas, pero una
   consulta larga hace esperar a las demás (como máximo 60 s por procedimiento).
-- Los procedimientos usan la fecha de `catFechas`. Si se valida un corte distinto al de `catFechas`, los datos de
-  la cuenta corresponden a `catFechas` aunque la pantalla diga otra fecha.
+- Los procedimientos usan la fecha de `catFechas`. Si `catFechas` es posterior al corte, los listados incluyen
+  movimientos posteriores al corte; la pantalla lo avisa con "Datos al ...". No se puede validar un corte anterior.
+- En diciembre los procedimientos usan el día 24 como corte; el validador siempre usa el 20 (sin verificar).

@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
@@ -28,6 +29,11 @@ public final class DemoEstadoCuentaService implements EstadoCuentaService {
     public static final long CLIENTE_CON_ATRASO = 10000002L;
 
     private static final Logger LOG = Logger.getLogger(DemoEstadoCuentaService.class.getName());
+
+    @Override
+    public Optional<LocalDate> fechaDatos() {
+        return Optional.empty();
+    }
 
     @Override
     public String origen() {

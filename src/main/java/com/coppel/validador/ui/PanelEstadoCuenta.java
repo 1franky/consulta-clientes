@@ -197,7 +197,7 @@ public class PanelEstadoCuenta extends JPanel {
                 .append("<li>Aviso importante: ").append(e(esp.explicacionAviso())).append("</li>")
                 .append("<li>Citatorio [18] según el manual: ")
                 .append(esp.citatorio().isEmpty() ? "no aplica" : e(esp.citatorio()))
-                .append(" (").append(e(esp.explicacionCitatorio())).append("). El formato 2026 no lo imprime.</li>")
+                .append(" (").append(e(esp.explicacionCitatorio())).append(").</li>")
                 .append("<li>Situación especial en el directorio: ")
                 .append(e(c.situacionEspecial() + c.causaSituacion()))
                 .append(esp.situacionEspecial().isEmpty() ? " (no se imprime)" : "").append("</li>")

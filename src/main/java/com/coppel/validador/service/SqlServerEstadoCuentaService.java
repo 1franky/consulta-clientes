@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -84,6 +85,25 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
     @Override
     public String origen() {
         return db.nombre();
+    }
+
+    @Override
+    public Optional<LocalDate> fechaDatos() throws SQLException {
+        String sql = config.procedimiento("fechaDatos");
+        if (sql == null) {
+            return Optional.empty();
+        }
+        try (Connection con = DriverManager.getConnection(db.url(), db.usuario(), db.password());
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setQueryTimeout(TIMEOUT_CONSULTA_SEG);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getTimestamp(1) == null) {
+                    LOG.warning("[" + db.nombre() + "] catFechas no devolvió fecha");
+                    return Optional.empty();
+                }
+                return Optional.of(rs.getTimestamp(1).toLocalDateTime().toLocalDate());
+            }
+        }
     }
 
     @Override

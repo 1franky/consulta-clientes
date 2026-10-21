@@ -50,9 +50,17 @@ Para evitarlo, el servicio ejecuta cada listado con `autoCommit=false` y hace `R
 
 ## Fecha de corte
 
-Los procedimientos toman la fecha de `catFechas`, no la de la pantalla. Por eso sus columnas calculadas (`SaldaCon`,
-`BonificacionMuebles`, `MesesTranscurridos`...) corresponden a la fecha de `catFechas`. El validador recalcula la
-bonificación con la fecha de corte de la pantalla (ver [bonificaciones.md](bonificaciones.md)).
+Los procedimientos no reciben la fecha de corte: toman `catFechas.Fecha`, la fecha a la que están los datos. Sus
+saldos, abonos y columnas calculadas (`SaldaCon`, `BonificacionMuebles`, `MesesTranscurridos`...) corresponden a
+esa fecha.
+
+Por eso el corte no se captura. Al abrir la ventana y en cada consulta, el validador lee `catFechas`
+(`sp.fechaDatos`) y toma como corte el último día 20 que no pase de esa fecha. Con ese corte calcula la
+bonificación (ver [bonificaciones.md](bonificaciones.md)), "Favor de pagar antes de" y los asteriscos.
+
+Si `catFechas` es posterior al corte (en el laboratorio es 18/10/2026, así que el corte es 20/09/2026), la pantalla
+muestra "Datos al ..." en rojo: los listados incluyen movimientos posteriores al corte, por ejemplo un abono del
+29 de septiembre.
 
 ## Columnas usadas
 

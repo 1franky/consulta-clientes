@@ -17,7 +17,9 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.SwingWorker;
+import javax.swing.UIManager;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Image;
@@ -28,6 +30,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -49,6 +52,7 @@ public class VentanaPrincipal extends JFrame {
 
     private final JTextField txtCliente = new JTextField(12);
     private final JTextField txtCorte = new JTextField(9);
+    private final JLabel lblDatos = new JLabel();
     private final JButton btnConsultar = new JButton("Consultar");
     private final JButton btnTema = new JButton();
     private final JLabel lblEstado = new JLabel(" ");
@@ -72,6 +76,7 @@ public class VentanaPrincipal extends JFrame {
         formulario.add(txtCliente);
         formulario.add(new JLabel("Corte:"));
         formulario.add(txtCorte);
+        formulario.add(lblDatos);
         formulario.add(btnConsultar);
 
         btnTema.addActionListener(e -> cambiarTema());
@@ -108,6 +113,49 @@ public class VentanaPrincipal extends JFrame {
         setMinimumSize(new Dimension(1100, 650));
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
+
+        cargarFechaDatos();
+    }
+
+    /** Al abrir, toma el corte de catFechas; si no hay base (demo) o falla, el corte se captura a mano. */
+    private void cargarFechaDatos() {
+        new SwingWorker<Optional<LocalDate>, Void>() {
+            @Override
+            protected Optional<LocalDate> doInBackground() throws Exception {
+                return service.fechaDatos();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get().ifPresent(VentanaPrincipal.this::mostrarFechaDatos);
+                } catch (InterruptedException | ExecutionException e) {
+                    Throwable causa = e.getCause() != null ? e.getCause() : e;
+                    LOG.log(Level.WARNING, "No se pudo leer catFechas", causa);
+                }
+            }
+        }.execute();
+    }
+
+    /**
+     * El corte sale de catFechas y no se edita: los procedimientos calculan con esa fecha, así que otro corte
+     * mezclaría dos meses. Si los datos son de días posteriores al corte, se avisa.
+     */
+    private void mostrarFechaDatos(LocalDate datos) {
+        LocalDate corte = corteSugerido(datos);
+        txtCorte.setText(FECHA.format(corte));
+        txtCorte.setEditable(false);
+        txtCorte.setToolTipText("Corte tomado de catFechas (" + FECHA.format(datos) + "); no se captura");
+        if (datos.equals(corte)) {
+            lblDatos.setText("");
+            lblDatos.setToolTipText(null);
+        } else {
+            lblDatos.setText("Datos al " + FECHA.format(datos));
+            lblDatos.setToolTipText("catFechas es " + FECHA.format(datos) + ": los listados incluyen movimientos "
+                    + "posteriores al corte y pueden no coincidir con el impreso");
+            Color rojo = UIManager.getColor("Actions.Red");
+            lblDatos.setForeground(rojo != null ? rojo : Color.RED);
+        }
     }
 
     private void cambiarTema() {
@@ -136,9 +184,9 @@ public class VentanaPrincipal extends JFrame {
             return;
         }
         long numeroCliente = Long.parseLong(texto);
-        LocalDate corte;
+        LocalDate corteCapturado;
         try {
-            corte = LocalDate.parse(txtCorte.getText().trim(), FECHA);
+            corteCapturado = LocalDate.parse(txtCorte.getText().trim(), FECHA);
         } catch (DateTimeParseException e) {
             lblEstado.setText("La fecha de corte debe tener el formato dd/mm/aaaa.");
             txtCorte.requestFocus();
@@ -153,8 +201,11 @@ public class VentanaPrincipal extends JFrame {
         new SwingWorker<Resultado, Void>() {
             @Override
             protected Resultado doInBackground() throws Exception {
+                // catFechas se vuelve a leer: cambia cada día y la ventana puede seguir abierta
+                Optional<LocalDate> datos = service.fechaDatos();
+                LocalDate corte = datos.map(VentanaPrincipal::corteSugerido).orElse(corteCapturado);
                 ExpedienteCliente exp = service.consultar(numeroCliente, corte);
-                return new Resultado(exp, calculadora.calcular(exp));
+                return new Resultado(datos, exp, calculadora.calcular(exp));
             }
 
             @Override
@@ -162,6 +213,7 @@ public class VentanaPrincipal extends JFrame {
                 btnConsultar.setEnabled(true);
                 try {
                     Resultado r = get();
+                    r.fechaDatos().ifPresent(VentanaPrincipal.this::mostrarFechaDatos);
                     panelEstadoCuenta.mostrar(r.expediente(), r.esperado());
                     panelListados.mostrar(r.expediente());
                     int avisos = r.expediente().avisos().size();
@@ -179,7 +231,8 @@ public class VentanaPrincipal extends JFrame {
         }.execute();
     }
 
-    private record Resultado(ExpedienteCliente expediente, EstadoCuentaEsperado esperado) {
+    private record Resultado(Optional<LocalDate> fechaDatos, ExpedienteCliente expediente,
+                             EstadoCuentaEsperado esperado) {
     }
 
     /** Ícono de la ventana y la barra de tareas, incluido dentro del jar. */

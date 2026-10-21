@@ -14,7 +14,7 @@ con *(deducida)*.
 
 | Dato | Regla |
 |---|---|
-| Fecha de corte | La captura la persona; por omisión el último día 20. |
+| Fecha de corte | Último día 20 hasta `catFechas` (la fecha de los datos). No se captura, salvo en modo demo. |
 | [2] Solo incluye abonos hasta | Fecha de corte, formato `20-Septiembre-2026`. |
 | Siguiente corte | Fecha de corte + 1 mes. Se usa en [7] y [15]. |
 

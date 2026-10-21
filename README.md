@@ -24,7 +24,10 @@ Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no
 
 1. Abrir `ValidadorEdoCta.exe`.
 2. **Abrir muestra...** y elegir el PDF escaneado (o una imagen). Se ve a la izquierda; con ◀ ▶ se cambia de página y con − + el zoom.
-3. Escribir el **número de cliente**, revisar la **fecha de corte** (por omisión el último día 20) y pulsar **Consultar**.
+3. Escribir el **número de cliente** y pulsar **Consultar**. La **fecha de corte** no se captura: es el último día 20
+   hasta `catFechas`. Si `catFechas` es posterior al corte, junto a la fecha aparece en rojo "Datos al ...": los
+   listados incluyen movimientos posteriores al corte y pueden no coincidir con el impreso. En modo demo el corte
+   sí se captura.
 4. Pestaña **Estado de cuenta esperado**: cómo debería verse el impreso. Abajo vienen las notas del cálculo
    (asteriscos, aviso importante, citatorio, situación especial) y el cálculo de bonificaciones.
    Los recuadros rojos son alertas (por ejemplo, una situación especial a la que no se le genera estado de cuenta).
@@ -167,8 +170,8 @@ de solo lectura no basta. El validador ejecuta cada listado en una transacción 
 terminar: la base queda igual y, si dos personas consultan a la vez, la segunda espera a la primera en lugar de
 leer tablas `tmp*` ajenas.
 
-Los procedimientos toman la fecha de corte de `catFechas`; la fecha de la pantalla solo se usa en los cálculos
-del validador (bonificación y leyendas).
+Los procedimientos toman la fecha de corte de `catFechas`. Por eso el validador lee `catFechas`
+(`SELECT TOP 1 Fecha FROM dbo.catFechas`) y toma como corte el último día 20 hasta esa fecha.
 
 ### Columnas
 
