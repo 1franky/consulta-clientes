@@ -15,7 +15,7 @@ Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no
 |---|---|
 | [docs/reglas-validacion.md](docs/reglas-validacion.md) | Cómo se calcula cada dato del estado de cuenta y de dónde sale |
 | [docs/procedimientos-bd.md](docs/procedimientos-bd.md) | Procedimientos de Carteras: parámetros, columnas, tablas `tmp*` y permisos |
-| [docs/bonificaciones.md](docs/bonificaciones.md) | Cálculo de bonificaciones y cómo actualizar `bonificaciones.csv` |
+| [docs/bonificaciones.md](docs/bonificaciones.md) | Cálculo de bonificaciones, catálogo de la base y `bonificaciones.csv` de respaldo |
 | [docs/pendientes.md](docs/pendientes.md) | Reglas por confirmar, mejoras propuestas y riesgos |
 
 ---
@@ -53,11 +53,12 @@ com.coppel.validador
 ├── service/                         ← TODO el acceso a la base de datos
 │   ├── EstadoCuentaService          ← interfaz que usa la pantalla
 │   ├── SqlServerEstadoCuentaService ← ejecuta los procedimientos y mapea columnas → modelo
+│   ├── SqlServerBonificacionesService ← catálogo de bonificaciones de la base
 │   ├── DemoEstadoCuentaService      ← datos de ejemplo sin BD (modo=demo)
 │   └── Registro                     ← búsqueda tolerante de columnas
 ├── validacion/                      ← reglas del manual, sin BD ni pantallas (se prueban con JUnit)
 │   ├── CalculadoraEstadoCuenta      ← estado de cuenta esperado: [5]–[24]
-│   ├── CatalogoBonificaciones       ← factores de bonificación (bonificaciones.csv)
+│   ├── CatalogoBonificaciones       ← factores de bonificación (base o bonificaciones.csv)
 │   └── Formato, EstadoCuentaEsperado
 └── ui/                              ← solo Swing: no hace SQL ni cálculos
     ├── VentanaPrincipal
@@ -117,7 +118,7 @@ Resultado:
 target\installer\ValidadorEdoCta\
 ├── ValidadorEdoCta.exe      ← lo que abre el usuario
 ├── config.properties        ← modo y credenciales (editable)
-├── bonificaciones.csv       ← catálogo de bonificaciones (editable, sin recompilar)
+├── bonificaciones.csv       ← catálogo de respaldo si la base no tiene bonificaciones
 ├── logo.png                 ← logo (opcional)
 ├── logs\                    ← se crea al abrir la app
 ├── app\                     ← jar de la aplicación
@@ -181,9 +182,13 @@ aparece `No se encontró la columna para muebles.saldoFecha`, se indica el nombr
 sin recompilar: `columna.muebles.saldoFecha=NombreNuevo`. Si un procedimiento falla, su pestaña dice "(error)" y el
 detalle queda en `logs\errores-0.log`.
 
-### Actualizar las bonificaciones (sin recompilar)
+### Bonificaciones
 
-El catálogo está en `bonificaciones.csv`, junto al `.exe`:
+Con `modo=sqlserver`, al abrir la aplicación se lee el catálogo de `cat_bonificacionescarteras` y
+`cat_bonificacionesPrestamos` (`sp.bonificaciones`), el mismo que usan los procedimientos. Si no hay conexión o las
+tablas están vacías, se usa `bonificaciones.csv`. La barra de estado indica qué catálogo se cargó.
+
+El respaldo `bonificaciones.csv` está junto al `.exe`:
 
 ```
 cartera,plazo,dias_transcurridos,factor,vigente_desde
@@ -194,7 +199,7 @@ PRESTAMOS,12,350,0.0015,2024-06-20
 - Para cada compra se usa el bloque con la `vigente_desde` más reciente que sea menor o igual a la fecha de compra
   (igual que `fec_iniciobloque` en `cat_bonificacionescarteras`).
 - Si cambian los factores, **agregar** renglones con la nueva `vigente_desde`; las compras anteriores conservan sus
-  factores. Guardar y volver a abrir la aplicación (la barra de estado indica qué catálogo se cargó).
+  factores. Guardar y volver a abrir la aplicación.
 - Si el archivo no existe se usa la copia incluida en el programa (`src/main/resources/bonificaciones.csv`, que
   `build.bat` copia junto al `.exe`). Otra ruta: `bonificaciones.archivo` en `config.properties`.
 

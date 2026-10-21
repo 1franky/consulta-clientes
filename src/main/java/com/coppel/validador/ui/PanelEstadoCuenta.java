@@ -105,12 +105,11 @@ public class PanelEstadoCuenta extends JPanel {
         if (!c.telefono().isBlank() && !c.telefono().equals("0")) {
             sb.append("<br>TEL: ").append(e(c.telefono()));
         }
-        // Tres renglones de claves, como en el impreso. El número de en medio es el consecutivo de impresión
-        String tenue = "<font color='" + p.tenue() + "'>";
+        // Tres renglones de claves, como en el impreso. El hueco de en medio es el consecutivo de impresión
         sb.append("<br><br><table cellspacing='0' cellpadding='0'><tr>")
                 .append(clave(c.numeroCliente() + c.digito())).append(clave(Formato.cadenaCobranza(c)))
                 .append(clave(c.jefeGrupo())).append("<td></td></tr><tr>")
-                .append(clave(c.supervisor())).append("<td nowrap>").append(tenue).append("(consec.)</font></td>")
+                .append(clave(c.supervisor())).append(clave("    "))
                 .append(clave(Formato.centro(c.centro())))
                 .append("<td nowrap>&nbsp;&nbsp;&nbsp;&nbsp;").append(e(esp.situacionEspecial())).append("</td></tr><tr>")
                 .append(clave(c.inicialCiudad().isEmpty() ? "?" : c.inicialCiudad())).append(clave(Formato.zona(c.zona())))
@@ -201,7 +200,7 @@ public class PanelEstadoCuenta extends JPanel {
                 .append("<li>Situación especial en el directorio: ")
                 .append(e(c.situacionEspecial() + c.causaSituacion()))
                 .append(esp.situacionEspecial().isEmpty() ? " (no se imprime)" : "").append("</li>")
-                .append("<li>(consec.): consecutivo del estado de cuenta en la impresión; depende del lote, no se valida.</li>")
+                .append("<li>El hueco entre supervisor y centro es el consecutivo del estado de cuenta en la impresión; depende del lote, no se valida.</li>")
                 .append("</ul>");
 
         // Detalle de bonificaciones
@@ -233,7 +232,7 @@ public class PanelEstadoCuenta extends JPanel {
 
     /** Una clave del bloque de datos del cliente, con separación a la derecha. */
     private static String clave(String texto) {
-        return "<td nowrap><font face='monospaced'>" + e(texto) + "</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>";
+        return "<td nowrap><font face='monospaced'>" + fijo(texto) + "</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>";
     }
 
     /** Texto que conserva los espacios dobles del impreso. */

@@ -30,7 +30,7 @@ con *(deducida)*.
 | Cadena de cobranza | Puntualidad + puntualidad activa (`spcQCCredito`) + `EstadoCivil` + `TipoDeCasa` + `Sexo` + `IngresoMensual` (2 dígitos) + año de `Antiguedad` (2 dígitos). Ej. `AACPF0322`. |
 | Bloque de claves | Renglón 1: cliente + dígito, cadena, jefe de grupo. Renglón 2: supervisor, consecutivo, centro y situación especial. Renglón 3: ciudad abreviada y zona. |
 | Jefe de grupo / supervisor | `jefegrupo` / `supervisor`. |
-| Consecutivo *(deducida)* | Número entre supervisor y centro (2, 393, 1175...). Es el orden del estado de cuenta en el lote de impresión (sube con la zona y el domicilio), así que no se puede validar por cliente. |
+| Consecutivo *(deducida)* | Número entre supervisor y centro (2, 393, 1175...). Es el orden del estado de cuenta en el lote de impresión (sube con la zona y el domicilio), así que no se puede validar por cliente: el validador deja el hueco vacío. |
 | Ciudad abreviada | `CatCiudades.InicialCiudad` de la ciudad del cliente: `ACYN` = Acayucan (`sp.inicialCiudad`). |
 | Centro | `centro` con guion antes de los dos últimos dígitos: `500001` → `5000-01`. |
 | Zona *(deducida)* | `NumeroCiudad-NumeroColonia`, con la colonia a 4 dígitos: `100-0200`. |
@@ -61,7 +61,7 @@ pagar consideran **todas** las cuentas. Las cuentas con convenio de devolución 
 
 ```
 días         = (fecha de corte + 1 mes) − fecha de compra
-factor       = bonificaciones.csv (cartera, plazo, días, vigencia)
+factor       = cat_bonificacionescarteras / cat_bonificacionesPrestamos (bonificaciones.csv sin base)
 bonificación = round(base × factor), sin pasar del saldo a la fecha
 páguelo      = usted debe − bonificación
 ```
@@ -74,7 +74,7 @@ páguelo      = usted debe − bonificación
   el interés completo.
 - **Con atraso** (vencido > 0) o **cuenta perdida:** sin bonificación.
 - **Tiempo aire:** bonificación del mes × 1.
-- **Sin catálogo** (Deuda Bancoppel, Reestructura, o un plazo que no está en el CSV): se toma el `SaldaCon` del
+- **Sin catálogo** (Deuda Bancoppel, Reestructura, o un plazo que no está en el catálogo): se toma el `SaldaCon` del
   listado y la pantalla lo indica para verificarlo a mano.
 
 Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificacion`, `fnGeSaldaCon` y

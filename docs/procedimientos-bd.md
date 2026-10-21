@@ -22,6 +22,8 @@ corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 | `informativa` | `proc_carterainformativa` | `@num_cliente INT` | `SELECT 1`; situaciones en `tmp_CteSituacionEsp` |
 | `marcasContacto` | `proc_clientenocontactado` | `@num_cliente INT` | **Sin filas**: tabla `tmp_clientenocontactado` |
 | `inicialCiudad` | `SELECT` a `maeDirectorio` + `CatCiudades` | `:cliente` | `InicialCiudad` (ACYN) |
+| `fechaDatos` | `SELECT` a `catFechas` | — | Fecha de los datos; de ella sale el corte |
+| `bonificaciones` | `SELECT` a `cat_bonificacionescarteras` + `cat_bonificacionesPrestamos` | — | Catálogo de bonificaciones, al abrir (ver [bonificaciones.md](bonificaciones.md)) |
 
 Los que dejan el resultado en una tabla se configuran con un `SELECT` en la misma sentencia:
 

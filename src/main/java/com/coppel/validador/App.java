@@ -2,8 +2,10 @@ package com.coppel.validador;
 
 import com.coppel.validador.config.Config;
 import com.coppel.validador.config.Log;
+import com.coppel.validador.model.FactorBonificacion;
 import com.coppel.validador.service.DemoEstadoCuentaService;
 import com.coppel.validador.service.EstadoCuentaService;
+import com.coppel.validador.service.SqlServerBonificacionesService;
 import com.coppel.validador.service.SqlServerEstadoCuentaService;
 import com.coppel.validador.ui.Tema;
 import com.coppel.validador.ui.VentanaPrincipal;
@@ -12,6 +14,9 @@ import com.coppel.validador.validacion.CatalogoBonificaciones;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -39,7 +44,7 @@ public class App {
                 EstadoCuentaService service = config.modoDemo()
                         ? new DemoEstadoCuentaService()
                         : new SqlServerEstadoCuentaService(config);
-                CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(CatalogoBonificaciones.cargar(config.bonificaciones()));
+                CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(catalogo(config));
                 LOG.info("Origen de datos: " + service.origen());
 
                 new VentanaPrincipal(service, calculadora, config.logo())
@@ -51,5 +56,22 @@ public class App {
                 System.exit(1);
             }
         });
+    }
+
+    /** Catálogo de bonificaciones de la base; si no hay conexión o las tablas están vacías, el CSV. */
+    private static CatalogoBonificaciones catalogo(Config config) throws IOException {
+        if (!config.modoDemo()) {
+            SqlServerBonificacionesService bonificaciones = new SqlServerBonificacionesService(config);
+            try {
+                List<FactorBonificacion> factores = bonificaciones.leer();
+                if (!factores.isEmpty()) {
+                    return CatalogoBonificaciones.de(factores, bonificaciones.origen());
+                }
+                LOG.warning("Las tablas de bonificaciones están vacías: se usa bonificaciones.csv");
+            } catch (SQLException e) {
+                LOG.log(Level.WARNING, "No se pudo leer el catálogo de bonificaciones de la base: se usa bonificaciones.csv", e);
+            }
+        }
+        return CatalogoBonificaciones.cargar(config.bonificaciones());
     }
 }

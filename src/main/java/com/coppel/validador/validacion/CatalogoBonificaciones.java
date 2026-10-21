@@ -1,5 +1,7 @@
 package com.coppel.validador.validacion;
 
+import com.coppel.validador.model.FactorBonificacion;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,7 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.OptionalDouble;
@@ -17,10 +21,11 @@ import java.util.logging.Logger;
 
 /**
  * Porcentajes de bonificación por cartera, plazo, días transcurridos y vigencia
- * (cat_bonificacionescarteras / cat_bonificacionesPrestamos), leídos de bonificaciones.csv.
+ * (cat_bonificacionescarteras / cat_bonificacionesPrestamos).
  *
- * Se usa el archivo externo (junto a config.properties) si existe, para poder actualizar los
- * factores sin recompilar; si no, la copia incluida en el jar.
+ * Con base de datos se leen las tablas (ver App). Si no hay conexión o están vacías, se usa
+ * bonificaciones.csv: el archivo externo (junto a config.properties) si existe; si no, la copia
+ * incluida en el jar.
  */
 public final class CatalogoBonificaciones {
 
@@ -64,8 +69,7 @@ public final class CatalogoBonificaciones {
     }
 
     private static CatalogoBonificaciones leer(InputStream in, String origen) throws IOException {
-        CatalogoBonificaciones catalogo = new CatalogoBonificaciones(origen);
-        Map<String, Map<LocalDate, Map<Integer, Double>>> leidos = new HashMap<>();
+        List<FactorBonificacion> leidos = new ArrayList<>();
         BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
         String linea;
         int numero = 0;
@@ -78,13 +82,24 @@ public final class CatalogoBonificaciones {
             String[] c = linea.split(",");
             try {
                 LocalDate desde = c.length > 4 && !c[4].isBlank() ? LocalDate.parse(c[4].trim()) : LocalDate.of(1901, 1, 1);
-                leidos.computeIfAbsent(c[0].trim().toUpperCase() + "|" + Integer.parseInt(c[1].trim()), k -> new HashMap<>())
-                        .computeIfAbsent(desde, k -> new HashMap<>())
-                        .put(Integer.parseInt(c[2].trim()), Double.parseDouble(c[3].trim()));
+                leidos.add(new FactorBonificacion(c[0].trim().toUpperCase(), Integer.parseInt(c[1].trim()),
+                        Integer.parseInt(c[2].trim()), Double.parseDouble(c[3].trim()), desde));
             } catch (RuntimeException e) {
                 throw new IOException("Renglón " + numero + " inválido en el catálogo de bonificaciones ("
                         + origen + "): " + linea, e);
             }
+        }
+        return de(leidos, origen);
+    }
+
+    /** Arma el catálogo con renglones ya leídos (del CSV o de la base). */
+    public static CatalogoBonificaciones de(List<FactorBonificacion> renglones, String origen) {
+        CatalogoBonificaciones catalogo = new CatalogoBonificaciones(origen);
+        Map<String, Map<LocalDate, Map<Integer, Double>>> leidos = new HashMap<>();
+        for (FactorBonificacion f : renglones) {
+            leidos.computeIfAbsent(f.cartera() + "|" + f.plazo(), k -> new HashMap<>())
+                    .computeIfAbsent(f.vigenteDesde(), k -> new HashMap<>())
+                    .put(f.dias(), f.factor());
         }
         leidos.forEach((clave, bloques) -> {
             NavigableMap<LocalDate, double[]> porVigencia = new TreeMap<>();
