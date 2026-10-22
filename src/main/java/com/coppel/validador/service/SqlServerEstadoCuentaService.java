@@ -311,6 +311,7 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                     ? "PRESTAMO" : Registro.aTexto(r.opcional("articulo", "DescripcionArticulo"));
             default -> r.texto("articulo", "DescripcionArticulo", "Articulo");
         };
+        Object minimo = revolvente ? r.opcional("minimoAPagar", "MinimoaPagarMesAct", "MinimoaPagar") : null;
         Object convenioDevolucion = r.opcional("convenioDevolucion", "FechaConvenioDevolucion", "MarcaConvDevolucion",
                 "FecConvDevol");
 
@@ -349,7 +350,13 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 Registro.aFecha(r.opcional("fechaConvenio", "FechaDelConvenio", "FechaConvenio")),
                 Registro.aEntero(r.opcional("importeConvenio", "ImporteDelConvenio")),
                 (int) Registro.aEntero(r.opcional("plazoConvenio", "PlazoDelConvenio")),
-                (int) Registro.aEntero(r.opcional("tipoProducto", "TipoProducto")));
+                (int) Registro.aEntero(r.opcional("tipoProducto", "TipoProducto")),
+                minimo == null ? null : Registro.aEntero(minimo),
+                Registro.aEntero(r.opcional("enganchesMes", "EnganchesDelMes")),
+                Registro.aEntero(r.opcional("bonificacionOtorgada", "BonificacionOtorgada")),
+                listado.cuentaPerdida()
+                        ? Registro.aEntero(r.opcional("saldoMesAnterior", "SaldoMesAnterior", "Saldo20MesAnterior")) : 0,
+                listado.cuentaPerdida() ? Registro.aEntero(r.opcional("salarioCuentasPerdidas", "SalMinZonaC")) : 0);
     }
 
     /** tmpDineroElectronico3: saldo y "Corte N" de abonos puntuales. */

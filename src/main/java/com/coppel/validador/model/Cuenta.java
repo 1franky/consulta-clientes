@@ -17,6 +17,11 @@ import java.time.LocalDate;
  * @param tipoProducto       TipoProducto de muebles: decide la tabla de bonificación (55 = moto)
  * @param importeVenta       importe y enganche de la venta, último movimiento y convenio: con ellos la emisión
  *                           decide la leyenda "recoger" / "DEFINIR CON PAGOS" (fnPc2GeDeterminaLeyRecogerDefinirPagos)
+ * @param minimoAPagar       ropa y tiempo aire (MinimoaPagarMesAct): base del pase a pagar; null si el listado no lo trae
+ * @param enganchesMes       ropa y tiempo aire: la emisión los suma a "Menos abonos" junto con la bonificación otorgada
+ * @param saldoMesAnterior   cuentas perdidas: saldo en diezmilésimos de salario mínimo (SaldoMesAnterior; en ropa
+ *                           Saldo20MesAnterior)
+ * @param salarioCuentasPerdidas cuentas perdidas: SalMinZonaC; pesos = saldoMesAnterior × salario / 10000
  */
 public record Cuenta(
         TipoCartera tipo,
@@ -51,7 +56,12 @@ public record Cuenta(
         LocalDate fechaConvenio,
         long importeConvenio,
         int plazoConvenio,
-        int tipoProducto) {
+        int tipoProducto,
+        Long minimoAPagar,
+        long enganchesMes,
+        long bonificacionOtorgada,
+        long saldoMesAnterior,
+        long salarioCuentasPerdidas) {
 
     /** Sin los datos de venta y convenio (modo demo y pruebas). */
     public Cuenta(TipoCartera tipo, boolean cuentaPerdida, long numeroTienda, long numeroFactura, String articulo,
@@ -64,6 +74,6 @@ public record Cuenta(
                 interesSobreCompra, abonoMensual, abonosMes, comprasMes, saldoFecha, interesAdicionalMesAnterior,
                 interesAdicional, interesAdicionalMes, vencido, saldaCon, saldaCon20SiguienteMes, bonificacionMes,
                 fechaUltimoMovimiento, fechaSinSaldo, convenioActivo, convenioDevolucion, domiciliada,
-                0, 0, 0, "", null, 0, 0, 0);
+                0, 0, 0, "", null, 0, 0, 0, null, 0, 0, 0, 0);
     }
 }

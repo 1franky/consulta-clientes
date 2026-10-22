@@ -45,22 +45,25 @@ Se pintan hasta 5 cuentas en el orden del impresor *(impresor)*: por cartera (ro
 tiempo aire, reestructura, muebles) y, dentro de cada una, de la compra más reciente a la más antigua y por factura
 mayor. Las cuentas perdidas van en su lugar por fecha, no al final. Las muestras confirman ropa → préstamos y Deuda
 Bancoppel → muebles; el lugar de tiempo aire y reestructura es supuesto. Las facturas [19] van en el mismo orden.
-Los totales y el pase a pagar consideran **todas** las cuentas. Las cuentas con convenio de devolución no se consideran.
+Los totales y el pase a pagar consideran **todas** las cuentas. Las cuentas con convenio de devolución no se consideran,
+y la emisión solo toma cuentas con saldo a la fecha mayor que 0. Las columnas marcadas *(emisión)* replican
+`spPc2GeCar*VdoCalEdoCta` (código en `FuncionesEmision`).
 
 | Columna | Regla |
 |---|---|
 | Artículo *(impresor)* | Descripción a 8 caracteres (10 en Deuda Bancoppel): `REFRIGERAD` → `REFRIGER`. |
 | [5] Fecha de compra | `FechaVenta` (muebles), `FechaUltimaCompra` (ropa), `FechaPrestamo` (préstamos). |
-| Usted debía *(deducida)* | Saldo a la fecha + int. adic. mes anterior + abonos del mes − compras del mes. |
-| Menos abonos | `AbonoDelMes` / `AbonosDelMes`. |
-| Más sus compras | `ComprasDelMes` / `PrestamosDelMes`. |
-| Interés adicional *(deducida)* | `NuevoInteresCargado` (interés cargado en el mes). |
-| [6] Usted debe | `SaldoALaFecha` + interés adicional total. |
+| Usted debía *(emisión)* | Muebles, Deuda Bancoppel y reestructura (`fnPc2GeUstedDebiaMuebles`): saldo + interés adicional − compras + abonos − interés del mes. Ropa y tiempo aire (`fnPc2GeUstedDebiaRopa`): igual, con los abonos de la emisión. Préstamos (`fnPc2GeUstedDebiaPrestamos`): 0 si el préstamo es del mes; si no, saldo + interés + abonos − interés del mes. Fuera del corte del día 20 no se resta el interés del mes. |
+| Menos abonos *(emisión)* | `AbonoDelMes`; ropa y tiempo aire: `AbonosDelMes` + `EnganchesDelMes` + `BonificacionOtorgada`. |
+| Más sus compras *(emisión)* | `fnPc2GeDeterminaComprasDelMes`: venta + interés sobre compra si la compra cae del 21 del mes anterior al 20 del corte (préstamos: `PrestamosDelMes`); ropa y tiempo aire: `ComprasDelMes`. |
+| Interés adicional | `NuevoInteresCargado` (interés cargado en el mes). Ocupa el lugar del interés moratorio de la emisión, que ya no existe en las carteras (no hay `TasaInteres`). |
+| [6] Usted debe | `SaldoALaFecha` + interés adicional total (negativo = 0, `fnGeInteresAdicional`). |
 | [7] Páguelo con solo | Usted debe − bonificación (ver abajo). |
-| [8] Abono mensual | `AbonoMensual` (ropa y tiempo aire: `AbonoBase`). |
-| [9] Atrasado *(deducida)* | Si hay vencido: vencido + interés adicional, con tope en "usted debe". Ropa usa `Vencido2`. |
-| [10] Pase a pagar *(deducida en el tope)* | Abono mensual + atrasado, con tope en "usted debe". |
-| [11] Fecha de último abono | `FechaUltimoMov`. Vacía si el último movimiento fue la compra del mes; `CP` en cuentas perdidas. |
+| [8] Abono mensual *(emisión)* | `AbonoMensual` (ropa y tiempo aire: `AbonoBase`), con el mínimo de $40 de `fnGeCalculaSaldo40`: si debe $40 o menos, el abono es lo que debe; si el pase a pagar no pasa de $40, abono y pase son $40. |
+| [9] Atrasado *(emisión)* | `fnGeVencidoEmision`: vencido + interés adicional. Ropa usa `Vencido2`. |
+| [10] Pase a pagar *(emisión)* | Muebles, Deuda Bancoppel, reestructura y préstamos (`fnGePaseAPagarMuebles`): atrasado + abono, nunca menos que el abono ni más que usted debe; si el atrasado es todo lo que debe, el atrasado. Ropa y tiempo aire (`fnGePaseAPagarRopa`): mínimo a pagar (`MinimoaPagarMesAct` con los topes de `fun_minimoabonosaldoteoricoemision`) + interés adicional. Después, el mínimo de $40. |
+| [11] Fecha de último abono *(emisión)* | `FechaUltimoMov` solo si `TipoUltimoMov` es abono de la cartera: muebles y Deuda Bancoppel `1`, reestructura `F`, ropa y tiempo aire `5`, préstamos `B` o `C` (`fnPc2GeFechaUltimoMov`). Se imprime aunque sea el día de la compra (una muestra con abono de ropa el día de su compra). |
+| Cuentas perdidas *(emisión)* | Solo de ropa y muebles, y solo a clientes Z (`spPc2GeCuentasPerdidasRopaMuebles`). Sin interés; usted debía, usted debe, atrasado y pase a pagar = `SaldoMesAnterior` (ropa: `Saldo20MesAnterior`) × `SalMinZonaC` / 10000, truncado. Abono mensual del listado y `CP` en la fecha de último abono. |
 | [12] TOTALES $ | Suma de cada columna (todas las cuentas). |
 
 ### [7] Bonificación

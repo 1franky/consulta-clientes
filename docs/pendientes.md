@@ -4,7 +4,7 @@
 
 | Tema | Situación actual |
 |---|---|
-| Cuentas perdidas (CP) | Se calculan igual que las normales, sin bonificación y con `CP` en "fecha de último abono". En una muestra, el "usted debe" de una cuenta perdida no coincide con ninguna columna del listado. |
+| Cuentas perdidas (CP) | Se arman como la emisión y cuadran con las 4 muestras, pero con dos diferencias contra el código del laboratorio: el saldo en pesos sale truncado (el laboratorio redondea) y el abono mensual se imprime (el laboratorio lo deja en 0). Confirmar el salario de `cat_salariosminimosctasperdidas` en producción. |
 | Orden del detalle | Falta confirmar el lugar de tiempo aire y reestructura, y de préstamos frente a Deuda Bancoppel (ninguna muestra los tiene juntos). |
 | Motos con factor repetido | `CAT_BONIFICACIONESMOTOS` (plazo 12, días 31–92) tiene dos factores por día; la base toma uno sin orden definido. El validador usa el mayor, que es el que devuelve el laboratorio. Confirmar en producción. |
 | Deuda Bancoppel y Reestructura | No están en el catálogo de bonificaciones; se usa el Salda Con del listado (`SaldaCon20SigMes` si los datos son del mes del corte). Con datos posteriores al corte el `SaldaCon` es a la fecha de los datos, no al siguiente corte. |
@@ -18,7 +18,9 @@
 | Teléfono en el complemento | Una muestra omite un teléfono de 10 dígitos capturado en el complemento; se generalizó a todos. |
 | Domiciliado [21] y domicilio certificado | El impresor pinta "*_Domiciliada" cuando la descripción del artículo empieza con `*`; los listados del laboratorio no la traen así. Falta saber de dónde pone la emisión ese `*`. Domicilio certificado: sin columna identificada. |
 | Asteriscos [16] | La regla 3* del manual es ambigua ("atraso ≥ 50% del abono base y ≤ 75% dos abonos base"). Se interpretó como 50% de un abono a 75% de dos abonos. |
-| Atrasado [9] | El manual dice "= VENCIDO", pero las muestras muestran vencido + interés adicional (con tope en "usted debe"). Se implementó lo de las muestras. |
+| Atrasado [9] | Se usa `fnGeVencidoEmision` (vencido + interés adicional, sin tope). Una cuenta sin vencido pero con interés adicional imprimiría ese interés como atrasado; ninguna muestra tiene ese caso. |
+| Abono base de ropa | `fun_minimoabonosaldoteoricoemision` recalcula el abono base (saldo / plazo + 0.5), pero una muestra de ropa (compra de $527 a 12 meses) imprime 43 donde el recálculo daría 44: el validador usa el `AbonoBase` del listado con los topes de la función. En tiempo aire sí se replica el recálculo (saldo / 5), sin muestras que lo confirmen. |
+| Interés moratorio | La emisión resta el moratorio en "usted debía", calculado con `TasaInteres`, que ya no existe en las carteras. Se usa el interés cargado en el mes; las muestras cuadran así. |
 
 ## Mejoras propuestas
 

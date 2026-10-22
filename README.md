@@ -77,10 +77,10 @@ Regla: `ui` solo habla con `service` (datos) y `validacion` (reglas). `validacio
 | [2] | Solo incluye abonos hasta = fecha de corte |
 | [3] | Domicilio = calle # casa + depto. + rumbo + entre calles + complemento, partido a 50 caracteres; colonia + municipio en el último renglón. Nombre, ciudad abreviada (`ACYN`, de `CatCiudades`), situación especial impresa (`I35`). Datos generales del directorio, cadena de cobranza (`AACPF0322` = puntualidad, puntualidad activa, estado civil, tipo de casa, sexo, ingreso, antigüedad), jefe de grupo, supervisor, centro (`5000-01`), zona (`100-0200`) |
 | [5] | Fecha de compra = fecha de venta (muebles) o fecha última compra (ropa) |
-| [6] | Usted debe = saldo a la fecha + interés adicional. Usted debía = saldo + int. adic. mes anterior + abonos − compras. Interés adicional del renglón = `NuevoInteresCargado` |
+| [3]–[6] | Como la emisión (`FuncionesEmision`): usted debía = saldo + interés − compras + abonos − interés del mes; compras del 21 al 20; usted debe = saldo a la fecha + interés adicional. Interés adicional del renglón = `NuevoInteresCargado` |
 | [7] | Páguelo con solo = usted debe − bonificación, con bonificación = round(Int. s/compra × factor), tope el saldo a la fecha (`fnGeSaldaCon`). Factor del catálogo por cartera, plazo, días = (corte + 1 mes) − fecha de compra y vigencia (`fec_iniciobloque`). Préstamos: base `InteresFinanciamiento`, factor nuevo desde 20-jun-2024. Ropa sin saldo hace ≤ 30 días (`fec_sinsaldo`): interés completo |
-| [8]–[10] | Abono mensual; atrasado = vencido + interés adicional (tope usted debe); pase a pagar = abono + atrasado (tope usted debe) |
-| [11] | Fecha de último abono = fec. ult. movto (vacía si el último movimiento fue la compra; `CP` en cuentas perdidas) |
+| [8]–[10] | Atrasado = vencido + interés adicional; pase a pagar = atrasado + abono con topes (ropa: mínimo a pagar + interés); mínimo de $40 |
+| [11] | Fecha de último abono = fec. ult. movto solo si el último movimiento es abono; cuentas perdidas (ropa y muebles, clientes Z) con saldo en salarios mínimos y `CP` |
 | [12]–[13] | Totales de todas las cuentas (se pintan hasta 5) |
 | [15] | INMEDIATO si puntualidad B, C, D, Z, N con atrasado ≥ abono total, o A con atrasado ≥ 2 abonos; sin pase a pagar solo "Fecha:" |
 | [16] | Asteriscos: `*` al corriente, `**` nuevo del mes, `***` A con atraso del 50% al 75% de dos abonos |

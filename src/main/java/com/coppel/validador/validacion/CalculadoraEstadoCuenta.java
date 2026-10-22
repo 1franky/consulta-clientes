@@ -65,6 +65,14 @@ public final class CalculadoraEstadoCuenta {
 
     /** El impresor tiene lugar para 4 monedas de abono puntual. */
     public static final int MAX_MONEDAS = 4;
+    /** @sVarTipoUltimoMov de cada spPc2GeCar*VdoCalEdoCta: tipos de movimiento que son abono. */
+    private static final Map<TipoCartera, Set<String>> TIPOS_ABONO = Map.of(
+            TipoCartera.MUEBLES, Set.of("1"),
+            TipoCartera.DEUDA_BANCOPPEL, Set.of("1"),
+            TipoCartera.REESTRUCTURA, Set.of("F"),
+            TipoCartera.ROPA, Set.of("5"),
+            TipoCartera.TIEMPO_AIRE, Set.of("5"),
+            TipoCartera.PRESTAMOS, Set.of("B", "C"));
     /** fnGeConvenioVigente: días que dura vigente un convenio. */
     private static final int DIAS_CONVENIO_VIGENTE = 45;
 
@@ -102,9 +110,14 @@ public final class CalculadoraEstadoCuenta {
                 alertas.add("Cuenta " + c.articulo() + " con convenio de devolución: no se considera en el estado de cuenta");
                 continue;
             }
-            Renglon r = renglon(c, siguienteCorte, saldaConDelSiguienteCorte(exp, siguienteCorte));
-            if (r.ustedDebe() > 0) {
-                renglones.add(r);
+            if (c.cuentaPerdida() && !cuentaPerdidaEnEmision(c, cliente)) {
+                alertas.add("Cuenta perdida de " + c.tipo().nombre() + " (" + c.articulo().strip() + "): la emisión solo "
+                        + "incluye cuentas perdidas de ropa y muebles de clientes con puntualidad Z");
+                continue;
+            }
+            // La emisión solo toma cuentas con SaldoALaFecha > 0
+            if ((c.cuentaPerdida() ? saldoCuentaPerdida(c) : c.saldoFecha()) > 0) {
+                renglones.add(renglon(c, corte, siguienteCorte, saldaConDelSiguienteCorte(exp, siguienteCorte)));
             }
         }
 
@@ -214,6 +227,9 @@ public final class CalculadoraEstadoCuenta {
         }
         for (Renglon r : renglones) {
             Cuenta c = r.cuenta();
+            if (c.cuentaPerdida()) {
+                continue; // la emisión les pone interés adicional 0
+            }
             intereses.merge("I" + c.tipo().letraInteres(), c.interesAdicional(), Long::sum);
             String primerMes = switch (c.tipo()) {
                 case ROPA -> "R1";
@@ -498,40 +514,106 @@ public final class CalculadoraEstadoCuenta {
                 && YearMonth.from(exp.fechaDatos().plusMonths(1)).equals(YearMonth.from(siguienteCorte));
     }
 
-    private Renglon renglon(Cuenta c, LocalDate siguienteCorte, boolean saldaCon20) {
-        // [6] USTED DEBE = SALDO A LA FECHA + INTERÉS ADICIONAL
-        long debe = c.saldoFecha() + c.interesAdicional();
-        long interesMes = c.interesAdicionalMes();
-        long debia = Math.max(0, c.saldoFecha() + c.interesAdicionalMesAnterior() + c.abonosMes() - c.comprasMes());
+    /**
+     * Un renglón del detalle como lo arma la emisión (spPc2GeCar*VdoCalEdoCta y la unión de spPc2GeEjecutaProcCalculos).
+     * El interés moratorio de la emisión ya no existe en las carteras (no hay TasaInteres): su lugar lo ocupa el interés
+     * adicional cargado en el mes, que es también lo que se imprime en "Interés adicional".
+     */
+    private Renglon renglon(Cuenta c, LocalDate corte, LocalDate siguienteCorte, boolean saldaCon20) {
+        if (c.cuentaPerdida()) {
+            return renglonCuentaPerdida(c);
+        }
+        boolean revolvente = c.tipo() == TipoCartera.ROPA || c.tipo() == TipoCartera.TIEMPO_AIRE;
+        long saldo = c.saldoFecha();
+        // fnGeInteresAdicional (préstamos toma el interés tal cual)
+        long interes = c.tipo() == TipoCartera.PRESTAMOS
+                ? c.interesAdicional() : FuncionesEmision.interesAdicional(c.interesAdicional());
+        long moratorio = c.interesAdicionalMes();
+
+        // [5] MÁS SUS COMPRAS: fnPc2GeDeterminaComprasDelMes; ropa y tiempo aire traen ComprasDelMes
+        long compras = switch (c.tipo()) {
+            case ROPA, TIEMPO_AIRE -> c.comprasMes();
+            case PRESTAMOS -> FuncionesEmision.comprasDelMes(c.fechaCompra(), corte, c.comprasMes());
+            default -> FuncionesEmision.comprasDelMes(c.fechaCompra(), corte, c.importeVenta() + c.interesSobreCompra());
+        };
+        // [4] MENOS ABONOS: ropa y tiempo aire suman enganches y bonificación otorgada (AbonosDelMesEmision)
+        long abonos = revolvente ? c.abonosMes() + c.enganchesMes() + c.bonificacionOtorgada() : c.abonosMes();
+
+        // [3] USTED DEBÍA
+        long debia = switch (c.tipo()) {
+            case ROPA, TIEMPO_AIRE -> FuncionesEmision.ustedDebiaRopa(saldo, interes, compras, abonos, moratorio, corte);
+            case PRESTAMOS -> FuncionesEmision.ustedDebiaPrestamos(saldo, interes, abonos, moratorio, c.fechaCompra(), corte);
+            default -> FuncionesEmision.ustedDebiaMuebles(saldo, interes, compras, abonos, moratorio, corte);
+        };
+
+        // [6] USTED DEBE = SALDO A LA FECHA + INTERÉS ADICIONAL (fnGeUstedDebe)
+        long debe = saldo + interes;
 
         // [7] PÁGUELO CON SOLO = USTED DEBE - bonificación
         Bonificacion bonificacion = bonificacion(c, debe, siguienteCorte, saldaCon20);
         long paguelo = debe - bonificacion.importe();
 
-        // [9] ATRASADO = VENCIDO (en las muestras incluye el interés adicional, tope USTED DEBE)
-        long atrasado = c.vencido() > 0 ? Math.min(c.vencido() + c.interesAdicional(), debe) : 0;
-        // [10] PASE A PAGAR = ABONO MENSUAL + ATRASADO (tope USTED DEBE)
-        long pase = Math.min(c.abonoMensual() + atrasado, debe);
+        // [9] ATRASADO = VENCIDO + INTERÉS ADICIONAL (fnGeVencidoEmision)
+        long atrasado = FuncionesEmision.vencidoEmision(c.vencido(), interes);
 
-        // [11] FECHA DE ÚLTIMO ABONO = FECHA ULT MVTO; en cuentas perdidas se pinta "CP"
-        String ultimoAbono;
-        if (c.cuentaPerdida()) {
-            ultimoAbono = "CP";
-        } else if (c.comprasMes() > 0 && c.fechaUltimoMovimiento() != null
-                && c.fechaUltimoMovimiento().equals(c.fechaCompra())) {
-            ultimoAbono = ""; // el último movimiento fue la compra, no un abono
+        // [8] ABONO MENSUAL y [10] PASE A PAGAR, con el mínimo de $40 (fnGeCalculaSaldo40)
+        long abono;
+        long pase;
+        if (revolvente) {
+            // Sin MinimoaPagarMesAct (modo demo) el mínimo es el vencido más el abono base
+            long minimoMes = c.minimoAPagar() != null ? c.minimoAPagar() : Math.min(c.vencido() + c.abonoMensual(), saldo);
+            FuncionesEmision.AbonoMinimo minimo = c.tipo() == TipoCartera.ROPA
+                    ? FuncionesEmision.minimoAbonoRopa(minimoMes, c.abonosMes(), c.abonoMensual(), saldo, corte,
+                    c.plazo())
+                    : FuncionesEmision.minimoAbonoTiempoAire(minimoMes, c.abonosMes(), c.abonoMensual(), saldo, corte);
+            abono = FuncionesEmision.saldo40(debe, minimo).abonoBase();
+            pase = FuncionesEmision.paseAPagarRopa(minimo.minimo(), interes, debe, atrasado);
         } else {
-            ultimoAbono = Formato.fechaCorta(c.fechaUltimoMovimiento());
+            FuncionesEmision.AbonoMinimo resultado = FuncionesEmision.saldo40(debe,
+                    FuncionesEmision.paseAPagarMuebles(atrasado, c.abonoMensual(), debe));
+            abono = resultado.abonoBase();
+            pase = resultado.minimo();
         }
 
-        return new Renglon(c, descripcion(c), Formato.fechaCorta(c.fechaCompra()), debia, c.abonosMes(), c.comprasMes(),
-                interesMes, debe, paguelo, c.abonoMensual(), atrasado, pase, ultimoAbono, bonificacion);
+        // [11] FECHA DE ÚLTIMO ABONO: solo si el último movimiento es un abono
+        String ultimoAbono = Formato.fechaCorta(FuncionesEmision.fechaUltimoAbono(c.fechaUltimoMovimiento(),
+                c.tipoUltimoMovimiento(), TIPOS_ABONO.getOrDefault(c.tipo(), Set.of()), c.fechaCompra(), compras));
+
+        return new Renglon(c, descripcion(c), Formato.fechaCorta(c.fechaCompra()), debia, abonos, compras,
+                moratorio, debe, paguelo, abono, atrasado, pase, ultimoAbono, bonificacion);
+    }
+
+    /** spPc2GeCuentasPerdidasRopaMuebles: solo cuentas perdidas de ropa y muebles, y solo a clientes Z. */
+    static boolean cuentaPerdidaEnEmision(Cuenta c, Cliente cliente) {
+        return (c.tipo() == TipoCartera.ROPA || c.tipo() == TipoCartera.MUEBLES)
+                && cliente.puntualidad().strip().equalsIgnoreCase("Z");
+    }
+
+    /**
+     * Saldo en pesos de una cuenta perdida: la cartera la guarda en diezmilésimos de salario mínimo y la emisión la
+     * convierte con SaldoMesAnterior × salario / 10000. La emisión del laboratorio redondea, pero las cuatro muestras
+     * con cuenta perdida salen truncadas (11446 × 39 → 4,463). Sin esos datos (modo demo) se usa el saldo a la fecha.
+     */
+    static long saldoCuentaPerdida(Cuenta c) {
+        if (c.salarioCuentasPerdidas() <= 0 || c.saldoMesAnterior() <= 0) {
+            return c.saldoFecha();
+        }
+        return c.saldoMesAnterior() * c.salarioCuentasPerdidas() / 10000;
+    }
+
+    /**
+     * Cuenta perdida (spPc2GeEjecutaProcCalculos): sin interés adicional, y usted debía, usted debe, atrasado y pase a
+     * pagar son el saldo en pesos; en la fecha de último abono se pinta "CP". La emisión del laboratorio deja el abono
+     * en 0, pero las muestras sí lo imprimen: se toma el del listado.
+     */
+    private static Renglon renglonCuentaPerdida(Cuenta c) {
+        long saldo = saldoCuentaPerdida(c);
+        Bonificacion sinBonificacion = new Bonificacion(0, 0, c.plazo(), 0, 0, "Cuenta perdida: sin bonificación");
+        return new Renglon(c, descripcion(c), Formato.fechaCorta(c.fechaCompra()), saldo, 0, 0, 0, saldo, saldo,
+                c.abonoMensual(), saldo, saldo, "CP", sinBonificacion);
     }
 
     private Bonificacion bonificacion(Cuenta c, long debe, LocalDate siguienteCorte, boolean saldaCon20) {
-        if (c.cuentaPerdida()) {
-            return new Bonificacion(0, 0, c.plazo(), 0, 0, "Cuenta perdida: sin bonificación");
-        }
         if (c.tipo() == TipoCartera.TIEMPO_AIRE) {
             return new Bonificacion(c.bonificacionMes(), 0, c.plazo(), 1, Math.min(c.bonificacionMes(), debe),
                     "Tiempo aire: bonificación del mes × 1");

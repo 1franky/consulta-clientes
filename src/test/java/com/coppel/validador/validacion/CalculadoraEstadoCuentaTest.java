@@ -198,7 +198,7 @@ class CalculadoraEstadoCuentaTest {
         Cuenta conConvenio = new Cuenta(c.tipo(), false, c.numeroTienda(), c.numeroFactura(), c.articulo(),
                 c.numeroArticulos(), c.fechaCompra(), c.plazo(), c.interesSobreCompra(), c.abonoMensual(), c.abonosMes(),
                 c.comprasMes(), c.saldoFecha(), 0, 0, 0, 340, 0, 0, 0, c.fechaUltimoMovimiento(), null, false, false,
-                false, 0, 2000, 0, "", LocalDate.of(2026, 9, 5), 500, 3, 0);
+                false, 0, 2000, 0, "", LocalDate.of(2026, 9, 5), 500, 3, 0, null, 0, 0, 0, 0);
         ExpedienteCliente otro = new ExpedienteCliente(CORTE, exp.cliente(), List.of(conConvenio),
                 exp.dineroElectronico(), List.of(), List.of(), List.of(), List.of(), List.of(),
                 Map.of(ExpedienteCliente.llave(TipoCartera.MUEBLES, c.numeroFactura()), 2));
@@ -287,6 +287,19 @@ class CalculadoraEstadoCuentaTest {
         return calc.calcular(uno).renglones().get(0).bonificacion();
     }
 
+    @Test
+    void saldoDeCuentaPerdidaEnPesosComoLasMuestras() {
+        // Muestras: 11446 y 8241 diezmilésimos de salario × $39.00 → 4,463 y 3,213 (truncado)
+        assertEquals(4463, CalculadoraEstadoCuenta.saldoCuentaPerdida(cuentaPerdida(11446)));
+        assertEquals(3213, CalculadoraEstadoCuenta.saldoCuentaPerdida(cuentaPerdida(8241)));
+    }
+
+    private static Cuenta cuentaPerdida(long saldoMesAnterior) {
+        return new Cuenta(TipoCartera.MUEBLES, true, 1, 1, "CELULAR", 1, LocalDate.of(2024, 4, 12), 12, 0, 300, 0, 0,
+                3299, 0, 1165, 0, 0, 0, 0, 0, null, null, false, false, false,
+                0, 0, 0, "", null, 0, 0, 0, null, 0, 0, saldoMesAnterior, 3900);
+    }
+
     /** Venta de muebles a 12 meses con saldo de 20,000 y el interés sobre compra indicado. */
     private static Cuenta muebles(LocalDate venta, long interesSobreCompra, int tipoProducto) {
         return muebles(venta, interesSobreCompra, tipoProducto, "ARTICULO", 1);
@@ -296,7 +309,7 @@ class CalculadoraEstadoCuentaTest {
                                   long factura) {
         return new Cuenta(TipoCartera.MUEBLES, false, 1, factura, articulo, 1, venta, 12, interesSobreCompra, 1000, 0, 0,
                 20000, 0, 0, 0, 0, 0, 0, 0, venta, null, false, false, false,
-                0, 0, 0, "", null, 0, 0, tipoProducto);
+                0, 0, 0, "", null, 0, 0, tipoProducto, null, 0, 0, 0, 0);
     }
 
     @Test
