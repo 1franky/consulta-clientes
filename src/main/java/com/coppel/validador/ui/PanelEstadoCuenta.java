@@ -106,7 +106,7 @@ public class PanelEstadoCuenta extends JPanel {
         if (!c.telefono().isBlank() && !c.telefono().equals("0")) {
             sb.append("<br>TEL: ").append(e(c.telefono()));
         }
-        // Tres renglones de claves, como en el impreso. El hueco de en medio es el consecutivo de impresión
+        // Tres renglones de claves, como en el impreso. El hueco de en medio es el folio (FolioEstadoDeCuenta)
         sb.append("<br><br><table cellspacing='0' cellpadding='0'><tr>")
                 .append(clave(c.numeroCliente() + c.digito())).append(clave(Formato.cadenaCobranza(c)))
                 .append(clave(c.jefeGrupo())).append("<td></td></tr><tr>")
@@ -178,8 +178,8 @@ public class PanelEstadoCuenta extends JPanel {
         sb.append("<br><table width='100%' cellspacing='4' cellpadding='4'><tr>")
                 .append("<td width='50%' bgcolor='").append(p.gris()).append("'><font face='monospaced'>")
                 .append(e(esp.facturas())).append("</font></td>")
-                .append("<td width='50%' bgcolor='").append(p.gris()).append("' align='center'>")
-                .append(e(esp.interesesCartera())).append("</td></tr><tr>")
+                .append("<td width='50%' bgcolor='").append(p.gris()).append("'><font face='monospaced'>")
+                .append(e(esp.interesesCartera()).replace(" ", "&nbsp;")).append("</font></td></tr><tr>")
                 .append("<td valign='top' bgcolor='").append(p.gris()).append("'>");
         if (!esp.marcaContacto().isEmpty()) {
             sb.append(e(esp.marcaContacto())).append("<br>");
@@ -198,13 +198,20 @@ public class PanelEstadoCuenta extends JPanel {
                 .append("<li>Favor de pagar [15]: ").append(e(esp.explicacionFavorPagar())).append("</li>")
                 .append("<li>Asteriscos [16]: ").append(e(esp.explicacionAsteriscos())).append("</li>")
                 .append("<li>Aviso importante: ").append(e(esp.explicacionAviso())).append("</li>")
+                .append("<li>Invitaciones: si la emisión le asignó una invitación al cliente, el impresor la pinta ")
+                .append("en lugar de \"AVISO IMPORTANTE\" y de la marca (con atrasado, <i>leyinvitacionsdo1vdp1</i>; ")
+                .append("sin atrasado, <i>leyinvitacionsdo0vdp0</i>), y con invitación tipológica cambia la leyenda de ")
+                .append("mercadotecnia por la de préstamos. Esos datos solo están en Emision20: si la muestra trae una ")
+                .append("invitación, el aviso no se puede comparar.</li>")
                 .append("<li>Citatorio [18] según el manual: ")
                 .append(esp.citatorio().isEmpty() ? "no aplica" : e(esp.citatorio()))
                 .append(" (").append(e(esp.explicacionCitatorio())).append(").</li>")
                 .append("<li>Situación especial en el directorio: ")
                 .append(e(c.situacionEspecial() + c.causaSituacion()))
                 .append(esp.situacionEspecial().isEmpty() ? " (no se imprime)" : "").append("</li>")
-                .append("<li>El hueco entre supervisor y centro es el consecutivo del estado de cuenta en la impresión; depende del lote, no se valida.</li>")
+                .append("<li>El hueco entre supervisor y centro es el folio del estado de cuenta ")
+                .append("(<i>FolioEstadoDeCuenta</i>): un consecutivo por ciudad y centro que asigna Emision20. ")
+                .append("Depende del lote, no se valida.</li>")
                 .append("</ul>");
 
         // Detalle de bonificaciones

@@ -73,6 +73,8 @@ public final class CalculadoraEstadoCuenta {
             TipoCartera.ROPA, Set.of("5"),
             TipoCartera.TIEMPO_AIRE, Set.of("5"),
             TipoCartera.PRESTAMOS, Set.of("B", "C"));
+    /** Caracteres por lugar de interés [20]: el impresor separa las claves 40 puntos ("IM$99,999" cabe). */
+    static final int ANCHO_INTERES = 10;
     /** fnGeConvenioVigente: días que dura vigente un convenio. */
     private static final int DIAS_CONVENIO_VIGENTE = 45;
 
@@ -241,10 +243,7 @@ public final class CalculadoraEstadoCuenta {
                 intereses.merge(primerMes, c.interesPrimerMes(), Long::sum);
             }
         }
-        String interesesCartera = intereses.entrySet().stream()
-                .filter(e -> e.getValue() != 0)
-                .map(e -> e.getKey() + "$" + Formato.importeConCero(e.getValue()))
-                .collect(Collectors.joining("   "));
+        String interesesCartera = interesesEnPosicion(intereses);
 
         // [21] El impresor pinta "*_Domiciliada" si algún artículo del detalle empieza con "*"
         boolean domiciliada = renglones.subList(0, Math.min(EstadoCuentaEsperado.MAX_RENGLONES, renglones.size()))
@@ -471,6 +470,20 @@ public final class CalculadoraEstadoCuenta {
     /** fnGeMesesTranscurridos: diferencia de meses calendario, sin contar días. */
     static long mesesTranscurridos(LocalDate venta, LocalDate corte) {
         return Math.max(0, (corte.getYear() - venta.getYear()) * 12L + corte.getMonthValue() - venta.getMonthValue());
+    }
+
+    /**
+     * El impresor pinta cada clave en una posición fija (IR en X=415, IP 455, IB 495, IM 535, IE 575, IT 615, R1 655,
+     * M1 695, E1 735), aunque las de en medio vengan en 0. Cada lugar mide {@value #ANCHO_INTERES} caracteres para que,
+     * en letra de ancho fijo, cada clave caiga en su columna; los espacios al final se quitan.
+     */
+    static String interesesEnPosicion(Map<String, Long> intereses) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Long> e : intereses.entrySet()) {
+            String texto = e.getValue() != 0 ? e.getKey() + "$" + Formato.importeConCero(e.getValue()) : "";
+            sb.append(texto).append(" ".repeat(Math.max(1, ANCHO_INTERES - texto.length())));
+        }
+        return sb.toString().stripTrailing();
     }
 
     /**

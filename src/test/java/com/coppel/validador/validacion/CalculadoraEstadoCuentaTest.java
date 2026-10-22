@@ -105,7 +105,8 @@ class CalculadoraEstadoCuentaTest {
         assertEquals("INMEDIATO", esp.favorPagarAntesDe());
         assertEquals("", esp.asteriscos());
         assertEquals("2000200001*2 0600200002*2", esp.facturas());
-        assertEquals("IR$73   IM$293", esp.interesesCartera());
+        // IR en el primer lugar, IP e IB vacíos, IM en el cuarto (posiciones fijas del impresor)
+        assertEquals("IR$73" + " ".repeat(5) + " ".repeat(20) + "IM$293", esp.interesesCartera());
         assertFalse(esp.citatorio().isEmpty());
         assertEquals("3MSC", esp.marcaContacto());
         assertEquals(CalculadoraEstadoCuenta.AVISO_DEFINIR_PAGOS, esp.avisoImportante());
