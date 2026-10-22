@@ -93,7 +93,8 @@ public class VentanaPrincipal extends JFrame {
         division.setContinuousLayout(true);
 
         lblEstado.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
-        lblEstado.setText("Origen de datos: " + service.origen() + " · Bonificaciones: " + calculadora.origenCatalogo());
+        lblEstado.setText("Origen de datos: " + service.origen() + " · Bonificaciones: " + calculadora.origenCatalogo()
+                + " · Leyendas: " + calculadora.origenLeyendas());
 
         setLayout(new BorderLayout());
         add(arriba, BorderLayout.NORTH);

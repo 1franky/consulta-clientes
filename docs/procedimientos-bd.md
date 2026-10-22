@@ -25,6 +25,8 @@ corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 | `fechaDatos` | `SELECT` a `catFechas` | — | Fecha de los datos; de ella sale el corte |
 | `muebles*` | `SELECT` a `cat_configuracion_muebles_beneficios`, `cat_plazosmuebles`, `catnegocios`, `catTipoProducto`, `cat_configuracionnegocioafiliados` | — | Configuración de `proc_calculabonificacionmuebles`, al abrir |
 | `situacionesImpresas` | `SELECT` a `Mae_ClientesSituaciones` + `Ctl_SubprocesosSituaciones` | `:cliente` | Situaciones que se imprimen junto al centro |
+| `abonosYMesesVencidos` | `proc_clientenocontactado` + `fun_calculavencidoropa` / `fun_calculavencidotiempoaire` | `@num_cliente INT` | Abonos y meses vencidos por cuenta: llave de la leyenda del aviso |
+| `leyendasCorreos` | `SELECT` a `catLeyendasCorreos` | — | Textos de la leyenda de AVISO IMPORTANTE, al abrir |
 | `bonificaciones` | `SELECT` a `cat_bonificacionescarteras` + `cat_bonificacionesPrestamos` + tablas de muebles (motos, beneficios, negocios afiliados) | — | Catálogo de bonificaciones, al abrir (ver [bonificaciones.md](bonificaciones.md)) |
 
 Los que dejan el resultado en una tabla se configuran con un `SELECT` en la misma sentencia:

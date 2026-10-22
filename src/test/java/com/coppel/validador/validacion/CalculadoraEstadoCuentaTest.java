@@ -3,6 +3,7 @@ package com.coppel.validador.validacion;
 import com.coppel.validador.model.Cuenta;
 import com.coppel.validador.model.ExpedienteCliente;
 import com.coppel.validador.model.FactorBonificacion;
+import com.coppel.validador.model.LeyendaCorreo;
 import com.coppel.validador.model.ReglasMuebles;
 import com.coppel.validador.model.TipoCartera;
 import com.coppel.validador.service.DemoEstadoCuentaService;
@@ -30,11 +31,20 @@ class CalculadoraEstadoCuentaTest {
     private static final LocalDate CORTE = LocalDate.of(2026, 9, 20);
 
     private static CalculadoraEstadoCuenta calculadora;
+    /** Con algunos renglones de catLeyendasCorreos. */
+    private static CalculadoraEstadoCuenta conLeyendas;
     private final DemoEstadoCuentaService demo = new DemoEstadoCuentaService();
 
     @BeforeAll
     static void cargarCatalogo() throws IOException {
         calculadora = new CalculadoraEstadoCuenta(CatalogoBonificaciones.cargar());
+        conLeyendas = new CalculadoraEstadoCuenta(CatalogoBonificaciones.cargar(), ReglasMuebles.NINGUNA,
+                new CatalogoLeyendas(List.of(
+                        new LeyendaCorreo("A", 0, "1", "POR SU PUNTUALIDAD USTED PUEDE LLEVAR TODO SIN PAGO INICIAL.",
+                                "LO FELICITAMOS POR SER UN CLIENTE CUMPLIDO."),
+                        new LeyendaCorreo("A", 0, "2", "OTRA LEYENDA DE A/0", ""),
+                        new LeyendaCorreo("W", 0, "", "EL DIA X1 DE X2 USTED LE PROMETIO A X3",
+                                "ABONAR $X4 ANTES DEL DIA X5 DE X6.")), "prueba"));
     }
 
     @Test
@@ -58,7 +68,10 @@ class CalculadoraEstadoCuentaTest {
         assertEquals(9, esp.saldoDineroElectronico());
         assertEquals(1, esp.monedasAbonoPuntual());
         assertTrue(esp.alertas().isEmpty(), esp.alertas().toString());
-        assertEquals(CalculadoraEstadoCuenta.AVISO_PUNTUALIDAD, esp.avisoImportante());
+        assertEquals("", esp.avisoImportante(), "sin catálogo no hay texto");
+        assertTrue(esp.explicacionAviso().contains("A/0 clave 1"), esp.explicacionAviso());
+        assertEquals("POR SU PUNTUALIDAD USTED PUEDE LLEVAR TODO SIN PAGO INICIAL. LO FELICITAMOS POR SER UN CLIENTE "
+                + "CUMPLIDO.", conLeyendas.calcular(exp).avisoImportante(), "A/0 clave 1 en septiembre");
         assertEquals("", esp.marcaContacto());
         assertEquals("", esp.situacionEspecial(), "I23 no se imprime");
     }
@@ -122,8 +135,42 @@ class CalculadoraEstadoCuentaTest {
         EstadoCuentaEsperado esp = calculadora.calcular(sinMarca);
         // ROPA comprada el 27-Feb-25: 19 meses al 20-Sep-26, plazo 12
         assertEquals(CalculadoraEstadoCuenta.AVISO_DEFINIR_PAGOS, esp.avisoImportante());
-        assertTrue(esp.explicacionAviso().startsWith("ROPA"), esp.explicacionAviso());
+        // La TELCEL cumple "recoger" (S/15, prioridad 2100), que gana a definir (S/16, 2000) de la ROPA
+        assertTrue(esp.explicacionAviso().contains("S/15"), esp.explicacionAviso());
+        Renglon ropa = esp.renglones().get(0);
+        assertEquals(2, CalculadoraEstadoCuenta.recogerDefinir(ropa, 0, CORTE), "ROPA: plazo 12 con 19 meses");
         assertEquals(19, CalculadoraEstadoCuenta.mesesTranscurridos(LocalDate.of(2025, 2, 27), CORTE));
+    }
+
+    @Test
+    void leyendaDeCobranzasComoLaEmision() {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        Renglon ropa = calculadora.calcular(exp).renglones().get(0);
+        Renglon tv = calculadora.calcular(exp).renglones().get(1);
+        // Clave 1 en ene-mar y jul-sep, clave 2 los demás meses; con 2 o más vencidos sin clave
+        assertEquals("1", CalculadoraEstadoCuenta.leyendaCuenta(tv, 0, "A", CORTE).clave());
+        assertEquals("2", CalculadoraEstadoCuenta.leyendaCuenta(tv, 1, "A", LocalDate.of(2026, 10, 20)).clave());
+        assertEquals("", CalculadoraEstadoCuenta.leyendaCuenta(tv, 3, "B", CORTE).clave());
+        // Tope de 12 y prioridad = puntualidad + vencidos × 5 + 1
+        CalculadoraEstadoCuenta.Leyenda z = CalculadoraEstadoCuenta.leyendaCuenta(ropa, 28, "Z", CORTE);
+        assertEquals(12, z.numero());
+        assertEquals(661, z.prioridad());
+        // Temporada: A al corriente en noviembre → W/27
+        CalculadoraEstadoCuenta.Leyenda nov = CalculadoraEstadoCuenta.leyendaCuenta(tv, 0, "A", LocalDate.of(2026, 11, 20));
+        assertEquals("W", nov.letra());
+        assertEquals(27, nov.numero());
+
+        // Convenio vigente (45 días o menos): W/0 con día, mes e importe
+        Cuenta c = tv.cuenta();
+        Cuenta conConvenio = new Cuenta(c.tipo(), false, c.numeroTienda(), c.numeroFactura(), c.articulo(),
+                c.numeroArticulos(), c.fechaCompra(), c.plazo(), c.interesSobreCompra(), c.abonoMensual(), c.abonosMes(),
+                c.comprasMes(), c.saldoFecha(), 0, 0, 0, 340, 0, 0, 0, c.fechaUltimoMovimiento(), null, false, false,
+                false, 0, 2000, 0, "", LocalDate.of(2026, 9, 5), 500, 3, 0);
+        ExpedienteCliente otro = new ExpedienteCliente(CORTE, exp.cliente(), List.of(conConvenio),
+                exp.dineroElectronico(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                Map.of(ExpedienteCliente.llave(TipoCartera.MUEBLES, c.numeroFactura()), 2));
+        assertEquals("EL DIA 5 DE SEP USTED LE PROMETIO A X3 ABONAR $500 ANTES DEL DIA X5 DE X6.",
+                conLeyendas.calcular(otro).avisoImportante());
     }
 
     @Test
@@ -153,7 +200,7 @@ class CalculadoraEstadoCuentaTest {
     void situacionesImpresasDeLaBase() {
         ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
         ExpedienteCliente otro = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(), exp.dineroElectronico(),
-                List.of(), List.of(), List.of(), List.of(), List.of("I35", "S50AB"));
+                List.of(), List.of(), List.of(), List.of(), List.of("I35", "S50AB"), Map.of());
         assertEquals("I35,S50AB", calculadora.calcular(otro).situacionEspecial());
     }
 
@@ -165,7 +212,7 @@ class CalculadoraEstadoCuentaTest {
                 new FactorBonificacion("MOTOS", 12, 308, 0.0200, desde),
                 new FactorBonificacion("MUEBLES", 12, 338, 0.0087, desde)), "prueba");
         ReglasMuebles reglas = new ReglasMuebles(Map.of(56, 30), Set.of(), Set.of(), Map.of(), null);
-        CalculadoraEstadoCuenta conReglas = new CalculadoraEstadoCuenta(catalogo, reglas);
+        CalculadoraEstadoCuenta conReglas = new CalculadoraEstadoCuenta(catalogo, reglas, CatalogoLeyendas.VACIO);
         LocalDate venta = LocalDate.of(2025, 11, 16); // 338 días al 20-Oct-26
 
         // Moto (tipo 55): 8,400 × 0.0073 = 61, no el 0.0087 de muebles

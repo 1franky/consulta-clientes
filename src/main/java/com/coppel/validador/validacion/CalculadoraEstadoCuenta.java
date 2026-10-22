@@ -34,13 +34,23 @@ public final class CalculadoraEstadoCuenta {
 
     private final CatalogoBonificaciones catalogo;
     private final ReglasMuebles reglasMuebles;
+    private final CatalogoLeyendas leyendas;
 
-    static final String AVISO_LEGAL = "SU CUENTA ESTA A PUNTO DE PASAR AL DEPARTAMENTO LEGAL.URGE QUE RESPONDA. "
-            + "DE NO HACERLO, PRONTO SERA BOLETINADO AL BURO DE CREDITO";
+    /** Texto de S/16 en las muestras; el catálogo del laboratorio no tiene los renglones S. */
     static final String AVISO_DEFINIR_PAGOS = "DEFINIR CON PAGOS";
-    static final String AVISO_INTERESES = "AL CLIENTE YA COMENZAMOS A CARGARLE INTERESES ADICIONALES";
-    static final String AVISO_PUNTUALIDAD = "POR SU PUNTUALIDAD USTED PUEDE LLEVAR LO QUE GUSTE A CREDITO. "
-            + "LO FELICITAMOS POR SER UN CLIENTE CUMPLIDO.";
+
+    /** spPc2GeInsertaPrioridadesPorPunt: prioridad base de la leyenda normal de cobranzas. */
+    private static final Map<String, Integer> PRIORIDAD_PUNTUALIDAD =
+            Map.of("N", 100, "A", 200, "B", 300, "C", 400, "D", 500, "Z", 600);
+    /** fnPc2GeCalculaLeyNormalDeCobranzas topa los abonos y meses vencidos en 12. */
+    private static final int MAX_VENCIDOS_LEYENDA = 12;
+    /** Meses de corte en los que las leyendas de 0 y 1 vencidos usan la clave 1 (los demás, la 2). */
+    private static final Set<Integer> MESES_CLAVE_1 = Set.of(1, 2, 3, 7, 8, 9);
+    /** fnPc2GeCalculaLeyendaDeCobranzas: mes de corte → leyenda W de temporada. */
+    private static final Map<Integer, Integer> LEYENDA_TEMPORADA = Map.of(4, 24, 6, 25, 11, 27, 12, 28);
+    /** fnPc2GeRegresaInicialesMes */
+    private static final List<String> INICIALES_MES =
+            List.of("ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC");
 
     /** Sin consulta a la base (modo demo): las muestras solo imprimen I35; I23, I41 y S50 no. */
     private static final Set<String> SITUACIONES_IMPRESAS = Set.of("I35");
@@ -57,14 +67,21 @@ public final class CalculadoraEstadoCuenta {
     /** fnGeConvenioVigente: días que dura vigente un convenio. */
     private static final int DIAS_CONVENIO_VIGENTE = 45;
 
-    public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo, ReglasMuebles reglasMuebles) {
+    public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo, ReglasMuebles reglasMuebles,
+                                   CatalogoLeyendas leyendas) {
         this.catalogo = catalogo;
         this.reglasMuebles = reglasMuebles;
+        this.leyendas = leyendas;
     }
 
-    /** Sin la configuración de muebles por tipo de producto (modo demo, catálogo CSV). */
+    /** Sin la configuración de muebles ni el catálogo de leyendas (modo demo, catálogo CSV). */
     public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo) {
-        this(catalogo, ReglasMuebles.NINGUNA);
+        this(catalogo, ReglasMuebles.NINGUNA, CatalogoLeyendas.VACIO);
+    }
+
+    /** De dónde se leyó el catálogo de leyendas. */
+    public String origenLeyendas() {
+        return leyendas.origen();
     }
 
     /** De dónde se leyó el catálogo de bonificaciones. */
@@ -163,32 +180,13 @@ public final class CalculadoraEstadoCuenta {
         if (totales.ustedDebe() == 0 || atrasado == 0) {
             marca = "";
         }
-        // AVISO IMPORTANTE: textos de las muestras de 2026; "DEFINIR CON PAGOS" con la regla de la emisión
-        Renglon cuentaDefinir = cuentaDefinirConPagos(renglones, corte);
-        String aviso;
-        String explicacionAviso;
         if (puntualidad.equals("Z")) {
             marca = ""; // con puntualidad Z las muestras no imprimen la marca
-            aviso = AVISO_LEGAL;
-            explicacionAviso = "Puntualidad Z";
-        } else if (cuentaDefinir != null || marca.equals("3MSC")) {
-            // Las 4 muestras con esta leyenda traen 3MSC; la regla de la emisión explica 3 de ellas
-            aviso = AVISO_DEFINIR_PAGOS;
-            explicacionAviso = cuentaDefinir != null
-                    ? cuentaDefinir.articulo() + " a plazo de 12 meses comprada el " + cuentaDefinir.fechaCompra()
-                    + " (14 o más meses)" + (marca.equals("3MSC") ? " y marca 3MSC" : "")
-                    : "Marca 3MSC";
-        } else if (marca.contains("NCE")) {
-            aviso = AVISO_INTERESES;
-            explicacionAviso = "Marca NCE";
-        } else if (puntualidad.equals("A")) {
-            aviso = AVISO_PUNTUALIDAD;
-            explicacionAviso = "Puntualidad A";
-        } else {
-            aviso = "";
-            explicacionAviso = "Puntualidad " + puntualidad + (marca.isEmpty() ? " sin marca" : " con marca " + marca)
-                    + ": no hay muestra con este caso, revisar la leyenda a mano";
         }
+        // AVISO IMPORTANTE: renglón de catLeyendasCorreos que elige la emisión (fnPc2GeCalculaLeyendas, espacio 1)
+        Leyenda leyenda = leyendaAviso(renglones, exp, puntualidad, corte);
+        String aviso = leyenda.texto();
+        String explicacionAviso = leyenda.explicacion();
         if (!marcaListado.isEmpty() && marca.isEmpty() && !puntualidad.equals("Z")) {
             explicacionAviso += ". La marca " + marcaListado + " no se imprime porque el cliente no tiene atrasado";
         }
@@ -274,35 +272,183 @@ public final class CalculadoraEstadoCuenta {
     }
 
     /**
-     * Primera cuenta con la leyenda "DEFINIR CON PAGOS" según fnPc2GeDeterminaLeyRecogerDefinirPagos: plazo menor a
-     * 18 meses (fun_validarplazo = 12) y 14 o más meses desde la venta (fnGeMesesTranscurridos). No aplica a la
-     * cuenta de muebles que ya lleva la leyenda "recoger": debe 50% o más de la venta y tiene 3 o más abonos
-     * vencidos sin abonar desde la venta, o 5 o más con abonos o convenio vigente. Los abonos vencidos se aproximan
-     * con vencido / abono mensual (la emisión usa AbonosYMesesVencidos). Sin cuentas perdidas.
+     * Leyenda elegida para "AVISO IMPORTANTE": renglón de catLeyendasCorreos (letra, número, clave) y su prioridad.
+     *
+     * @param motivo por qué se eligió, para la explicación
      */
-    private static Renglon cuentaDefinirConPagos(List<Renglon> renglones, LocalDate corte) {
-        for (Renglon r : renglones) {
-            Cuenta c = r.cuenta();
-            if (c.cuentaPerdida() || r.ustedDebe() <= 0 || c.fechaCompra() == null || c.plazo() >= 18
-                    || mesesTranscurridos(c.fechaCompra(), corte) < 14) {
-                continue;
-            }
-            if (c.tipo() == TipoCartera.MUEBLES) {
-                boolean abono = !((c.fechaCompra().equals(c.fechaUltimoMovimiento())
-                        && !c.tipoUltimoMovimiento().strip().equals("5"))
-                        || c.importeVenta() - c.enganche() == c.saldoFecha());
-                boolean convenio = c.fechaConvenio() != null && c.importeConvenio() > 0 && c.plazoConvenio() > 0
-                        && ChronoUnit.DAYS.between(c.fechaConvenio(), corte) <= DIAS_CONVENIO_VIGENTE;
-                long porcentajeDeuda = c.importeVenta() > 0 ? (long) (r.ustedDebe() * 100.0 / c.importeVenta()) : 0;
-                long abonosVencidos = c.abonoMensual() > 0 ? c.vencido() / c.abonoMensual() : 0;
-                if (porcentajeDeuda >= 50 && ((abonosVencidos >= 3 && !abono && !convenio)
-                        || (abonosVencidos >= 5 && (abono || convenio)))) {
-                    continue; // leyenda "recoger"
-                }
-            }
-            return r;
+    record Leyenda(String letra, int numero, String clave, int prioridad, String motivo, String texto,
+                   String explicacion) {
+
+        static final Leyenda NINGUNA = new Leyenda("", -1, "", 0, "", "", "");
+
+        Leyenda(String letra, int numero, String clave, int prioridad, String motivo) {
+            this(letra, numero, clave, prioridad, motivo, "", "");
         }
-        return null;
+
+        String renglon() {
+            return letra + "/" + numero + (clave.isEmpty() ? "" : " clave " + clave);
+        }
+    }
+
+    /**
+     * fnPc2GeCalculaLeyendas, espacio 1 (posición 3 = AVISO IMPORTANTE): cada cuenta con saldo propone una leyenda con
+     * prioridad y el cliente se queda con la de mayor prioridad (spPc2GeCalculaLeyendas). Por cuenta, en el orden de
+     * la emisión, una leyenda solo reemplaza a otra de menor prioridad:
+     * <ol>
+     *   <li>Convenio vigente (fnPc2GeCalculaLeyendaConvenios): W/0, prioridad 850.</li>
+     *   <li>Temporada (fnPc2GeCalculaLeyendaDeCobranzas): puntualidad A (207) o N (107) con 1 o menos abonos y meses
+     *       vencidos en abril, junio, noviembre o diciembre: W/24, W/25, W/27, W/28.</li>
+     *   <li>Normal de cobranzas (fnPc2GeCalculaLeyNormalDeCobranzas): puntualidad / abonos y meses vencidos (máximo
+     *       12), prioridad = puntualidad (N 100 … Z 600) + vencidos × 5 + 1. Con 0 o 1 vencidos, clave 1 en enero,
+     *       febrero, marzo, julio, agosto y septiembre, y clave 2 los demás meses.</li>
+     *   <li>Recoger / definir con pagos (fnPc2GeCalLeyRecogerDefinir): S/15 (2100) o S/16 (2000).</li>
+     * </ol>
+     * No se replican, porque el laboratorio no tiene sus datos: cliente nuevo (W/19, 2000), ultimátum (X/69, 1000) y
+     * Enrique Coppel (W/40 y W/42).
+     */
+    private Leyenda leyendaAviso(List<Renglon> renglones, ExpedienteCliente exp, String puntualidad, LocalDate corte) {
+        Leyenda elegida = Leyenda.NINGUNA;
+        boolean aproximado = false;
+        for (Renglon r : renglones) {
+            if (r.cuenta().cuentaPerdida()) {
+                continue; // la emisión excluye las cuentas perdidas (NumeroFactura = -1)
+            }
+            Integer vencidos = abonosYMesesVencidos(exp, r.cuenta());
+            if (vencidos == null) {
+                aproximado = true;
+                vencidos = r.cuenta().abonoMensual() > 0 ? (int) (r.cuenta().vencido() / r.cuenta().abonoMensual()) : 0;
+            }
+            Leyenda propuesta = leyendaCuenta(r, vencidos, puntualidad, corte);
+            if (propuesta.prioridad() > elegida.prioridad()
+                    || (propuesta.prioridad() == elegida.prioridad() && propuesta.numero() > elegida.numero())) {
+                elegida = propuesta;
+            }
+        }
+        if (elegida == Leyenda.NINGUNA) {
+            return elegida;
+        }
+
+        String texto;
+        String nota;
+        var renglon = leyendas.buscar(elegida.letra(), elegida.numero(), elegida.clave());
+        if (renglon.isPresent()) {
+            texto = renglon.get().texto();
+            nota = "catLeyendasCorreos " + elegida.renglon();
+            if (elegida.letra().equals("W") && elegida.numero() == 0) {
+                texto = conveniosConcatenados(texto, renglones, corte);
+                nota += " (X3, X5 y X6 los llena la emisión con quién recibió el convenio y su vencimiento)";
+            }
+        } else if (elegida.letra().equals("S")) {
+            // El catálogo del laboratorio no trae los renglones S; las muestras imprimen este texto con S/16 y
+            // también en las 3 que cumplen la condición de "recoger" (S/15)
+            texto = AVISO_DEFINIR_PAGOS;
+            nota = elegida.renglon() + " no está en catLeyendasCorreos: texto tomado de las muestras";
+        } else {
+            texto = "";
+            nota = leyendas.vacio() ? "Sin catálogo de leyendas: corresponde el renglón " + elegida.renglon()
+                    : "El renglón " + elegida.renglon() + " no está en catLeyendasCorreos: revisar a mano";
+        }
+        String explicacion = elegida.motivo() + ". " + nota
+                + (aproximado ? ". Abonos vencidos aproximados con vencido / abono (no se consultaron)" : "");
+        return new Leyenda(elegida.letra(), elegida.numero(), elegida.clave(), elegida.prioridad(), elegida.motivo(),
+                texto, explicacion);
+    }
+
+    /** Propuesta de una cuenta con saldo, en el orden y con las prioridades de fnPc2GeCalculaLeyendas. */
+    static Leyenda leyendaCuenta(Renglon r, int vencidos, String puntualidad, LocalDate corte) {
+        Cuenta c = r.cuenta();
+        int mes = corte.getMonthValue();
+        Leyenda elegida = Leyenda.NINGUNA;
+        if (convenioVigente(c, corte)) {
+            elegida = new Leyenda("W", 0, "", 850, "Convenio vigente del " + Formato.fechaCorta(c.fechaConvenio())
+                    + " en " + r.articulo().strip());
+        }
+        int prioridadTemporada = puntualidad.equals("A") ? 207 : 107;
+        if (vencidos <= 1 && (puntualidad.equals("A") || puntualidad.equals("N"))
+                && LEYENDA_TEMPORADA.containsKey(mes) && elegida.prioridad() < prioridadTemporada) {
+            elegida = new Leyenda("W", LEYENDA_TEMPORADA.get(mes), "", prioridadTemporada,
+                    "Leyenda de temporada: puntualidad " + puntualidad + " con " + vencidos
+                            + " abonos y meses vencidos en el mes " + mes);
+        }
+        Integer base = PRIORIDAD_PUNTUALIDAD.get(puntualidad);
+        if (base != null) {
+            int numero = Math.min(vencidos, MAX_VENCIDOS_LEYENDA);
+            int prioridad = base + numero * 5 + 1;
+            if (elegida.prioridad() < prioridad) {
+                String clave = numero <= 1 ? (MESES_CLAVE_1.contains(mes) ? "1" : "2") : "";
+                elegida = new Leyenda(puntualidad, numero, clave, prioridad, "Puntualidad " + puntualidad + " con "
+                        + vencidos + " abonos y meses vencidos" + (vencidos > MAX_VENCIDOS_LEYENDA ? " (tope 12)" : "")
+                        + " en " + r.articulo().strip());
+            }
+        }
+        int recogerDefinir = recogerDefinir(r, vencidos, corte);
+        if (elegida.prioridad() < 2000 && recogerDefinir == 1) {
+            elegida = new Leyenda("S", 15, "", 2100, "Leyenda recoger: " + r.articulo().strip()
+                    + " debe 50% o más de la venta con " + vencidos + " abonos y meses vencidos");
+        } else if (elegida.prioridad() < 2000 && recogerDefinir == 2) {
+            elegida = new Leyenda("S", 16, "", 2000, r.articulo().strip() + " a plazo de 12 meses comprada el "
+                    + Formato.fechaCorta(c.fechaCompra()) + " (14 o más meses)");
+        }
+        return elegida;
+    }
+
+    /**
+     * fnPc2GeDeterminaLeyRecogerDefinirPagos: 1 = recoger, 2 = definir con pagos, 0 = ninguna. Recoger: muebles que
+     * debe 50% o más de la venta (importe + interés sobre compra, como spPc2GeCarMuebVdoCalEdoCta) con 3 o más abonos y meses vencidos sin abonar desde la venta y sin convenio, o 5 o
+     * más con abonos o convenio vigente. Definir: plazo de 12 (fun_validarplazo) y 14 o más meses desde la venta.
+     */
+    static int recogerDefinir(Renglon r, int vencidos, LocalDate corte) {
+        Cuenta c = r.cuenta();
+        if (r.ustedDebe() <= 0) {
+            return 0;
+        }
+        int flag = 0;
+        if (c.tipo() == TipoCartera.MUEBLES) {
+            long venta = c.importeVenta() + c.interesSobreCompra(); // spPc2GeCarMuebVdoCalEdoCta
+            boolean abono = !((c.fechaCompra() != null && c.fechaCompra().equals(c.fechaUltimoMovimiento())
+                    && !c.tipoUltimoMovimiento().strip().equals("5"))
+                    || venta - c.enganche() == c.saldoFecha());
+            boolean convenio = convenioVigente(c, corte);
+            long porcentajeDeuda = venta > 0 ? (long) (r.ustedDebe() * 100.0 / venta) : 0;
+            if (porcentajeDeuda >= 50 && ((vencidos >= 3 && !abono && !convenio)
+                    || (vencidos >= 5 && (abono || convenio)))) {
+                flag = 1;
+            }
+        }
+        if (flag != 1 && c.fechaCompra() != null && mesesTranscurridos(c.fechaCompra(), corte) >= 14
+                && plazoCatalogo(c.plazo()) == 12) {
+            flag = 2;
+        }
+        return flag;
+    }
+
+    /**
+     * fnGeConvenioVigente: convenio con importe y plazo de hace 45 días o menos. Un convenio posterior al corte no
+     * existía al emitir (los datos pueden ser de días después del corte).
+     */
+    private static boolean convenioVigente(Cuenta c, LocalDate corte) {
+        return c.fechaConvenio() != null && c.importeConvenio() > 0 && c.plazoConvenio() > 0
+                && !c.fechaConvenio().isAfter(corte)
+                && ChronoUnit.DAYS.between(c.fechaConvenio(), corte) <= DIAS_CONVENIO_VIGENTE;
+    }
+
+    /** W/0: "EL DIA X1 DE X2 ... ABONAR $X4 ..." con el día, el mes y el importe del convenio más reciente. */
+    private static String conveniosConcatenados(String texto, List<Renglon> renglones, LocalDate corte) {
+        return renglones.stream().map(Renglon::cuenta).filter(c -> convenioVigente(c, corte))
+                .max(Comparator.comparing(Cuenta::fechaConvenio))
+                .map(c -> texto.replace("X1", String.valueOf(c.fechaConvenio().getDayOfMonth()))
+                        .replace("X2", INICIALES_MES.get(c.fechaConvenio().getMonthValue() - 1))
+                        .replace("X4", String.valueOf(c.importeConvenio())))
+                .orElse(texto);
+    }
+
+    private static Integer abonosYMesesVencidos(ExpedienteCliente exp, Cuenta c) {
+        Map<String, Integer> vencidos = exp.abonosYMesesVencidos();
+        if (vencidos == null || vencidos.isEmpty()) {
+            return null;
+        }
+        Integer v = vencidos.get(ExpedienteCliente.llave(c.tipo(), c.numeroFactura()));
+        return v != null ? v : vencidos.get(ExpedienteCliente.llave(c.tipo(), 0));
     }
 
     /** fnGeMesesTranscurridos: diferencia de meses calendario, sin contar días. */

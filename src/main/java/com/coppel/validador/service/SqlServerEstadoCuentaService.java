@@ -18,6 +18,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,13 +169,26 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 }
             }
 
+            Map<String, Integer> abonosYMesesVencidos = new HashMap<>();
+            for (Registro r : consulta.ejecutar("abonosYMesesVencidos", "Abonos y meses vencidos")) {
+                String cartera = Registro.aTexto(r.opcional("cartera", "cartera")).strip();
+                long factura = Registro.aEntero(r.opcional("factura", "factura"));
+                int vencidos = (int) Registro.aEntero(r.opcional("abonosYMesesVencidos", "abonosYMesesVencidos"));
+                try {
+                    abonosYMesesVencidos.merge(ExpedienteCliente.llave(TipoCartera.valueOf(cartera), factura),
+                            vencidos, Math::max);
+                } catch (IllegalArgumentException e) {
+                    avisos.add("Abonos y meses vencidos: cartera desconocida " + cartera);
+                }
+            }
+
             LOG.info("[" + db.nombre() + "] Cliente " + numeroCliente + ": " + cuentas.size() + " cuenta(s), "
                     + avisos.size() + " aviso(s) en " + (System.nanoTime() - inicio) / 1_000_000 + " ms");
             for (String aviso : avisos) {
                 LOG.warning("[" + numeroCliente + "] " + aviso);
             }
             return new ExpedienteCliente(fechaCorte, cliente, cuentas, dinero, situaciones, marcas, listados, avisos,
-                    situacionesImpresas);
+                    situacionesImpresas, abonosYMesesVencidos);
         } catch (SQLException e) {
             LOG.log(Level.SEVERE, "[" + db.nombre() + "] Error de conexión consultando el cliente " + numeroCliente
                     + " (SQLState " + e.getSQLState() + ", código " + e.getErrorCode() + ")", e);

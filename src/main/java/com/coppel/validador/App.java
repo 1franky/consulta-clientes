@@ -8,10 +8,12 @@ import com.coppel.validador.service.DemoEstadoCuentaService;
 import com.coppel.validador.service.EstadoCuentaService;
 import com.coppel.validador.service.SqlServerBonificacionesService;
 import com.coppel.validador.service.SqlServerEstadoCuentaService;
+import com.coppel.validador.service.SqlServerLeyendasService;
 import com.coppel.validador.ui.Tema;
 import com.coppel.validador.ui.VentanaPrincipal;
 import com.coppel.validador.validacion.CalculadoraEstadoCuenta;
 import com.coppel.validador.validacion.CatalogoBonificaciones;
+import com.coppel.validador.validacion.CatalogoLeyendas;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -45,7 +47,8 @@ public class App {
                 EstadoCuentaService service = config.modoDemo()
                         ? new DemoEstadoCuentaService()
                         : new SqlServerEstadoCuentaService(config);
-                CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(catalogo(config), reglasMuebles(config));
+                CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(catalogo(config), reglasMuebles(config),
+                        leyendas(config));
                 LOG.info("Origen de datos: " + service.origen());
 
                 new VentanaPrincipal(service, calculadora, config.logo())
@@ -69,6 +72,20 @@ public class App {
         } catch (SQLException e) {
             LOG.log(Level.WARNING, "No se pudo leer la configuración de muebles: se usa el cálculo general", e);
             return ReglasMuebles.NINGUNA;
+        }
+    }
+
+    /** catLeyendasCorreos para la leyenda de AVISO IMPORTANTE; sin base o si falla, vacío (solo se indica el renglón). */
+    private static CatalogoLeyendas leyendas(Config config) {
+        if (config.modoDemo()) {
+            return CatalogoLeyendas.VACIO;
+        }
+        SqlServerLeyendasService servicio = new SqlServerLeyendasService(config);
+        try {
+            return new CatalogoLeyendas(servicio.leer(), servicio.origen());
+        } catch (SQLException e) {
+            LOG.log(Level.WARNING, "No se pudo leer catLeyendasCorreos: el aviso solo indicará el renglón", e);
+            return CatalogoLeyendas.VACIO;
         }
     }
 
