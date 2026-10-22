@@ -76,8 +76,7 @@ páguelo      = usted debe − bonificación
   el interés completo.
 - **Cuenta perdida:** sin bonificación. El atraso **no** quita la bonificación: los procedimientos no revisan el
   vencido y las muestras traen cuentas con atraso y bonificación. Las cuentas viejas dan 0 porque ya pasó el plazo.
-- **Muebles desde dic-2025** (`proc_calculabonificacionmuebles`): ajusta la fecha de compra por tipo de producto y
-  usa funciones propias para motos y negocios afiliados. **Pendiente:** el validador usa el cálculo general.
+- **Muebles** (`proc_calculabonificacionmuebles`, desde dic-2025): ver [bonificaciones.md](bonificaciones.md#muebles-por-tipo-de-producto).
 - **Tiempo aire:** bonificación del mes × 1.
 - **Sin catálogo** (Deuda Bancoppel, Reestructura, o un plazo que no está en el catálogo): se toma el `SaldaCon` del
   listado y la pantalla lo indica para verificarlo a mano.

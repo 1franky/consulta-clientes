@@ -14,6 +14,7 @@ import java.time.LocalDate;
  *                           bonifica el interés completo
  * @param bonificacionMes    solo tiempo aire: bonificación fija por mes
  * @param interesPrimerMes   InteresAdicionalPrimerMes: R1/M1/E1 en el área de intereses [20]
+ * @param tipoProducto       TipoProducto de muebles: decide la tabla de bonificación (55 = moto)
  * @param importeVenta       importe y enganche de la venta, último movimiento y convenio: con ellos la emisión
  *                           decide la leyenda "recoger" / "DEFINIR CON PAGOS" (fnPc2GeDeterminaLeyRecogerDefinirPagos)
  */
@@ -49,7 +50,8 @@ public record Cuenta(
         String tipoUltimoMovimiento,
         LocalDate fechaConvenio,
         long importeConvenio,
-        int plazoConvenio) {
+        int plazoConvenio,
+        int tipoProducto) {
 
     /** Sin los datos de venta y convenio (modo demo y pruebas). */
     public Cuenta(TipoCartera tipo, boolean cuentaPerdida, long numeroTienda, long numeroFactura, String articulo,
@@ -62,6 +64,6 @@ public record Cuenta(
                 interesSobreCompra, abonoMensual, abonosMes, comprasMes, saldoFecha, interesAdicionalMesAnterior,
                 interesAdicional, interesAdicionalMes, vencido, saldaCon, saldaCon20SiguienteMes, bonificacionMes,
                 fechaUltimoMovimiento, fechaSinSaldo, convenioActivo, convenioDevolucion, domiciliada,
-                0, 0, 0, "", null, 0, 0);
+                0, 0, 0, "", null, 0, 0, 0);
     }
 }

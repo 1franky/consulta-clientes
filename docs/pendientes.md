@@ -5,7 +5,7 @@
 | Tema | Situación actual |
 |---|---|
 | Cuentas perdidas (CP) | Se calculan igual que las normales, sin bonificación y con `CP` en "fecha de último abono". En una muestra, el "usted debe" de una cuenta perdida no coincide con ninguna columna del listado. |
-| Bonificación de muebles (dic-2025) | `spcQCMuebles` usa `proc_calculabonificacionmuebles`: ajusta la fecha de compra (día de pago, venta futura, días de ajuste por tipo de producto) y calcula motos (`fun_calculabonificacionmoto`), beneficios (`fun_calculabonificacionbeneficiosmuebles`) y negocios afiliados (`cat_bonificacionescoppelpay`) aparte. El validador usa el cálculo general: en una moto de muestra da 73 de bonificación y el impreso 61. |
+| Motos con factor repetido | `CAT_BONIFICACIONESMOTOS` (plazo 12, días 31–92) tiene dos factores por día; la base toma uno sin orden definido. El validador usa el mayor, que es el que devuelve el laboratorio. Confirmar en producción. |
 | Deuda Bancoppel y Reestructura | No están en el catálogo de bonificaciones; se usa el `SaldaCon` del listado. El Excel de Calidad trae un factor de ejemplo (8.01% y 0.41) sin tabla completa. |
 | Citatorio (CIT) [18] | El validador lo calcula según el manual, pero ninguna muestra del formato 2026 lo imprime. Confirmar si sigue vigente. |
 | Cadena de cobranza | El manual menciona el año de nacimiento, pero las muestras no lo imprimen. |

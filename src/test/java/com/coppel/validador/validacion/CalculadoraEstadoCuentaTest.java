@@ -2,6 +2,9 @@ package com.coppel.validador.validacion;
 
 import com.coppel.validador.model.Cuenta;
 import com.coppel.validador.model.ExpedienteCliente;
+import com.coppel.validador.model.FactorBonificacion;
+import com.coppel.validador.model.ReglasMuebles;
+import com.coppel.validador.model.TipoCartera;
 import com.coppel.validador.service.DemoEstadoCuentaService;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Renglon;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Totales;
@@ -11,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -139,6 +144,50 @@ class CalculadoraEstadoCuentaTest {
         ExpedienteCliente otro = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(), exp.dineroElectronico(),
                 List.of(), List.of(), List.of(), List.of(), List.of("I35", "S50AB"));
         assertEquals("I35,S50AB", calculadora.calcular(otro).situacionEspecial());
+    }
+
+    @Test
+    void motosUsanSuPropiaTablaYLosProductosConAjusteRecorrenLaFechaDeCompra() {
+        LocalDate desde = LocalDate.of(1901, 1, 1);
+        CatalogoBonificaciones catalogo = CatalogoBonificaciones.de(List.of(
+                new FactorBonificacion("MOTOS", 12, 338, 0.0073, desde),
+                new FactorBonificacion("MOTOS", 12, 308, 0.0200, desde),
+                new FactorBonificacion("MUEBLES", 12, 338, 0.0087, desde)), "prueba");
+        ReglasMuebles reglas = new ReglasMuebles(Map.of(56, 30), Set.of(), Set.of(), Map.of(), null);
+        CalculadoraEstadoCuenta conReglas = new CalculadoraEstadoCuenta(catalogo, reglas);
+        LocalDate venta = LocalDate.of(2025, 11, 16); // 338 días al 20-Oct-26
+
+        // Moto (tipo 55): 8,400 × 0.0073 = 61, no el 0.0087 de muebles
+        assertEquals(61, bonificacion(conReglas, muebles(venta, 8400, 55)).importe());
+        // Tipo 56: la fecha de compra se recorre 30 días → 308 días en la tabla de motos
+        EstadoCuentaEsperado.Bonificacion ajustada = bonificacion(conReglas, muebles(venta, 1000, 56));
+        assertEquals(308, ajustada.dias());
+        assertEquals(20, ajustada.importe());
+        // Tipo sin configuración: cálculo general de muebles
+        assertEquals(3, bonificacion(conReglas, muebles(venta, 344, 0)).importe());
+    }
+
+    @Test
+    void diaDePagoYPlazoDelCatalogo() {
+        assertEquals(LocalDate.of(2025, 12, 17), CalculadoraEstadoCuenta.diaDePago(false, LocalDate.of(2025, 11, 16)));
+        assertEquals(LocalDate.of(2026, 1, 17), CalculadoraEstadoCuenta.diaDePago(true, LocalDate.of(2025, 11, 16)));
+        assertEquals(12, CalculadoraEstadoCuenta.plazoCatalogo(15));
+        assertEquals(18, CalculadoraEstadoCuenta.plazoCatalogo(19));
+        assertEquals(36, CalculadoraEstadoCuenta.plazoCatalogo(48));
+    }
+
+    private static EstadoCuentaEsperado.Bonificacion bonificacion(CalculadoraEstadoCuenta calc, Cuenta cuenta) {
+        ExpedienteCliente exp = new DemoEstadoCuentaService().consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        ExpedienteCliente uno = new ExpedienteCliente(CORTE, exp.cliente(), List.of(cuenta), exp.dineroElectronico(),
+                List.of(), List.of(), List.of(), List.of());
+        return calc.calcular(uno).renglones().get(0).bonificacion();
+    }
+
+    /** Venta de muebles a 12 meses con saldo de 20,000 y el interés sobre compra indicado. */
+    private static Cuenta muebles(LocalDate venta, long interesSobreCompra, int tipoProducto) {
+        return new Cuenta(TipoCartera.MUEBLES, false, 1, 1, "ARTICULO", 1, venta, 12, interesSobreCompra, 1000, 0, 0,
+                20000, 0, 0, 0, 0, 0, 0, 0, venta, null, false, false, false,
+                0, 0, 0, "", null, 0, 0, tipoProducto);
     }
 
     @Test

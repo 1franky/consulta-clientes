@@ -38,7 +38,30 @@ con la sentencia `sp.bonificaciones`:
 | Ropa (`idu_cartera` 1) y muebles (2) | `cat_bonificacionescarteras` | Los diarios: `num_mesestranscurridos = 0`, por `num_diastranscurridos`. |
 | Préstamos | `cat_bonificacionesPrestamos` | `prc_bonificacion`; y `prc_bonificacionNueva` para compras desde el `fec_corte` del renglón −1 (bloque 0). |
 
-Si no hay conexión o la sentencia no devuelve renglones, se usa `bonificaciones.csv`. En la base de laboratorio el
+Si no hay conexión o la sentencia no devuelve renglones, se usa `bonificaciones.csv`.
+
+### Muebles por tipo de producto
+
+Desde dic-2025 `spcQCMuebles` calcula la bonificación de muebles con `proc_calculabonificacionmuebles`, y el validador
+hace lo mismo con la configuración de `sp.muebles*`:
+
+1. **Plazo:** se agrupa como `fun_validarplazo` (menos de 18 → 12, 18–23 → 18, 24–29 → 24, 30–35 → 30, 36 o más → 36).
+2. **Fecha de compra:** día de pago = día siguiente a la venta + 1 mes (`fun_calculardiadepago`; venta futura: + 2 meses
+   y al menos 60 días). Si el siguiente corte no pasa del día de pago, la fecha se recorre esa diferencia menos los
+   días del mes del pago. Si pasa: venta futura (`cat_plazosmuebles.clv_flagventafuturo`) + 1 mes; tipo de producto
+   con días de ajuste (`cat_configuracion_muebles_beneficios`) + esos días; si no, la fecha de venta.
+3. **Tabla:**
+
+| Caso | Tabla | Redondeo |
+|---|---|---|
+| Negocio afiliado: tipo de producto de `catnegocios` con `TipoCta = 2`, venta desde `FECHA_BONIFICACION_NA_MP` y sin `clv_bonifMuebles` vigente en `catTipoProducto` | `cat_bonificacionescoppelpay` | Trunca |
+| Tipo con 0 días de ajuste (y no moto) | `cat_bonificacion_muebles_beneficios` | Redondea |
+| Moto (tipo 55) o tipo con días de ajuste | `CAT_BONIFICACIONESMOTOS` | Redondea |
+| Los demás | `cat_bonificacionescarteras` (muebles, al menos 1 día) | Redondea |
+
+En `CAT_BONIFICACIONESMOTOS`, plazo 12, días 31 a 92 hay dos renglones con factor distinto (bloques 0 y 1). La función
+toma el primero que encuentra la base; en el laboratorio es el mayor (1.0), y el validador usa ese. Comprobado con la
+moto de una muestra: 8,400 × 0.0073 = 61, igual que el impreso. En la base de laboratorio el
 catálogo de la base y el CSV dan el mismo "Páguelo con solo" para los 12 clientes de prueba. El CSV difiere en ropa
 plazo 12: días 7 a 30 (el CSV trae 0.9 fijo; la base baja de 0.898 a 0.852), día 59 y día 118. La base es la que
 vale, porque es la que usan los procedimientos.

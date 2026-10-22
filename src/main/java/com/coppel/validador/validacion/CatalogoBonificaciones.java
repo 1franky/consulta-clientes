@@ -122,6 +122,15 @@ public final class CatalogoBonificaciones {
      * Se toma el bloque vigente más reciente con fecha &lt;= fecha de compra (fec_iniciobloque).
      * Pasado el último día del plazo la bonificación es 0.
      */
+    /** Vigencia más antigua de la cartera en cualquier plazo (MIN(fec_inicio)); null si no está en el catálogo. */
+    public LocalDate primeraVigencia(String cartera) {
+        return factores.entrySet().stream()
+                .filter(e -> e.getKey().startsWith(cartera + "|"))
+                .map(e -> e.getValue().firstKey())
+                .min(LocalDate::compareTo)
+                .orElse(null);
+    }
+
     public OptionalDouble factor(String cartera, int plazo, long dias, LocalDate fechaCompra) {
         NavigableMap<LocalDate, double[]> porVigencia = factores.get(cartera + "|" + plazo);
         if (porVigencia == null) {

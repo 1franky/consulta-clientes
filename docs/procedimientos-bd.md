@@ -23,8 +23,9 @@ corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 | `marcasContacto` | `proc_clientenocontactado` | `@num_cliente INT` | **Sin filas**: tabla `tmp_clientenocontactado` |
 | `inicialCiudad` | `SELECT` a `maeDirectorio` + `CatCiudades` | `:cliente` | `InicialCiudad` (ACYN) |
 | `fechaDatos` | `SELECT` a `catFechas` | — | Fecha de los datos; de ella sale el corte |
+| `muebles*` | `SELECT` a `cat_configuracion_muebles_beneficios`, `cat_plazosmuebles`, `catnegocios`, `catTipoProducto`, `cat_configuracionnegocioafiliados` | — | Configuración de `proc_calculabonificacionmuebles`, al abrir |
 | `situacionesImpresas` | `SELECT` a `Mae_ClientesSituaciones` + `Ctl_SubprocesosSituaciones` | `:cliente` | Situaciones que se imprimen junto al centro |
-| `bonificaciones` | `SELECT` a `cat_bonificacionescarteras` + `cat_bonificacionesPrestamos` | — | Catálogo de bonificaciones, al abrir (ver [bonificaciones.md](bonificaciones.md)) |
+| `bonificaciones` | `SELECT` a `cat_bonificacionescarteras` + `cat_bonificacionesPrestamos` + tablas de muebles (motos, beneficios, negocios afiliados) | — | Catálogo de bonificaciones, al abrir (ver [bonificaciones.md](bonificaciones.md)) |
 
 Los que dejan el resultado en una tabla se configuran con un `SELECT` en la misma sentencia:
 

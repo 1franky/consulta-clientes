@@ -333,7 +333,8 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 Registro.aTexto(r.opcional("tipoUltimoMovimiento", "TipoUltimoMov")),
                 Registro.aFecha(r.opcional("fechaConvenio", "FechaDelConvenio", "FechaConvenio")),
                 Registro.aEntero(r.opcional("importeConvenio", "ImporteDelConvenio")),
-                (int) Registro.aEntero(r.opcional("plazoConvenio", "PlazoDelConvenio")));
+                (int) Registro.aEntero(r.opcional("plazoConvenio", "PlazoDelConvenio")),
+                (int) Registro.aEntero(r.opcional("tipoProducto", "TipoProducto")));
     }
 
     /** tmpDineroElectronico3: saldo y "Corte N" de abonos puntuales. */

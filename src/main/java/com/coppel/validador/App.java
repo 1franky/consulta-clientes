@@ -3,6 +3,7 @@ package com.coppel.validador;
 import com.coppel.validador.config.Config;
 import com.coppel.validador.config.Log;
 import com.coppel.validador.model.FactorBonificacion;
+import com.coppel.validador.model.ReglasMuebles;
 import com.coppel.validador.service.DemoEstadoCuentaService;
 import com.coppel.validador.service.EstadoCuentaService;
 import com.coppel.validador.service.SqlServerBonificacionesService;
@@ -44,7 +45,7 @@ public class App {
                 EstadoCuentaService service = config.modoDemo()
                         ? new DemoEstadoCuentaService()
                         : new SqlServerEstadoCuentaService(config);
-                CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(catalogo(config));
+                CalculadoraEstadoCuenta calculadora = new CalculadoraEstadoCuenta(catalogo(config), reglasMuebles(config));
                 LOG.info("Origen de datos: " + service.origen());
 
                 new VentanaPrincipal(service, calculadora, config.logo())
@@ -56,6 +57,19 @@ public class App {
                 System.exit(1);
             }
         });
+    }
+
+    /** Configuración de muebles por tipo de producto; sin base o si falla, el cálculo general de muebles. */
+    private static ReglasMuebles reglasMuebles(Config config) {
+        if (config.modoDemo()) {
+            return ReglasMuebles.NINGUNA;
+        }
+        try {
+            return new SqlServerBonificacionesService(config).leerReglasMuebles();
+        } catch (SQLException e) {
+            LOG.log(Level.WARNING, "No se pudo leer la configuración de muebles: se usa el cálculo general", e);
+            return ReglasMuebles.NINGUNA;
+        }
     }
 
     /** Catálogo de bonificaciones de la base; si no hay conexión o las tablas están vacías, el CSV. */

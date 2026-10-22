@@ -4,6 +4,7 @@ import com.coppel.validador.model.Cliente;
 import com.coppel.validador.model.Cuenta;
 import com.coppel.validador.model.ExpedienteCliente;
 import com.coppel.validador.model.ExpedienteCliente.SituacionEspecial;
+import com.coppel.validador.model.ReglasMuebles;
 import com.coppel.validador.model.TipoCartera;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Bonificacion;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Renglon;
@@ -32,6 +33,7 @@ public final class CalculadoraEstadoCuenta {
     private static final Set<String> CAUSAS_P_EXCLUIDAS = Set.of("23", "71", "72", "73", "74");
 
     private final CatalogoBonificaciones catalogo;
+    private final ReglasMuebles reglasMuebles;
 
     static final String AVISO_LEGAL = "SU CUENTA ESTA A PUNTO DE PASAR AL DEPARTAMENTO LEGAL.URGE QUE RESPONDA. "
             + "DE NO HACERLO, PRONTO SERA BOLETINADO AL BURO DE CREDITO";
@@ -48,8 +50,14 @@ public final class CalculadoraEstadoCuenta {
     /** fnGeConvenioVigente: días que dura vigente un convenio. */
     private static final int DIAS_CONVENIO_VIGENTE = 45;
 
-    public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo) {
+    public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo, ReglasMuebles reglasMuebles) {
         this.catalogo = catalogo;
+        this.reglasMuebles = reglasMuebles;
+    }
+
+    /** Sin la configuración de muebles por tipo de producto (modo demo, catálogo CSV). */
+    public CalculadoraEstadoCuenta(CatalogoBonificaciones catalogo) {
+        this(catalogo, ReglasMuebles.NINGUNA);
     }
 
     /** De dónde se leyó el catálogo de bonificaciones. */
@@ -341,10 +349,13 @@ public final class CalculadoraEstadoCuenta {
             return new Bonificacion(c.bonificacionMes(), 0, c.plazo(), 1, Math.min(c.bonificacionMes(), debe),
                     "Tiempo aire: bonificación del mes × 1");
         }
-        long dias = c.fechaCompra() == null ? -1 : ChronoUnit.DAYS.between(c.fechaCompra(), siguienteCorte);
-        if (c.tipo() == TipoCartera.MUEBLES && dias >= 0 && dias < 1) {
-            dias = 1; // fun_calculabonificacion: en muebles al menos 1 día
+        if (c.tipo() == TipoCartera.MUEBLES && c.fechaCompra() != null) {
+            Bonificacion muebles = bonificacionMuebles(c, siguienteCorte);
+            if (muebles != null) {
+                return muebles;
+            }
         }
+        long dias = c.fechaCompra() == null ? -1 : ChronoUnit.DAYS.between(c.fechaCompra(), siguienteCorte);
         // fun_calculabonificacion: ropa que se quedó sin saldo hace 30 días o menos bonifica el interés completo
         if (c.tipo() == TipoCartera.ROPA && c.fechaSinSaldo() != null
                 && ChronoUnit.DAYS.between(c.fechaSinSaldo(), siguienteCorte) <= 30) {
@@ -370,6 +381,92 @@ public final class CalculadoraEstadoCuenta {
         // fnGeSaldaCon: la bonificación no puede pasar del saldo a la fecha
         long importe = Math.min(Math.round(c.interesSobreCompra() * factor.getAsDouble()), c.saldoFecha());
         return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), factor.getAsDouble(), importe, "");
+    }
+
+    /**
+     * proc_calculabonificacionmuebles (desde dic-2025): ajusta la fecha de compra y escoge la tabla por tipo de
+     * producto. Devuelve null si la tabla no está en el catálogo (se usa el Salda Con del listado).
+     */
+    private Bonificacion bonificacionMuebles(Cuenta c, LocalDate fechaSaldaCon) {
+        int plazo = plazoCatalogo(c.plazo());
+        boolean ventaFutura = reglasMuebles.plazosVentaFutura().contains(c.plazo());
+        int diasAjuste = reglasMuebles.diasAjuste().getOrDefault(c.tipoProducto(), -1);
+        LocalDate venta = c.fechaCompra();
+        LocalDate pago = diaDePago(ventaFutura, venta);
+        LocalDate compra;
+        if (!fechaSaldaCon.isAfter(pago)) {
+            compra = venta.plusDays(ChronoUnit.DAYS.between(venta, pago) - pago.lengthOfMonth());
+        } else if (ventaFutura) {
+            compra = venta.plusMonths(1);
+        } else if (diasAjuste > 0) {
+            compra = venta.plusDays(diasAjuste);
+        } else {
+            compra = venta;
+        }
+        long dias = ChronoUnit.DAYS.between(compra, fechaSaldaCon);
+        String ajuste = compra.equals(venta) ? "" : ", fecha de compra ajustada al " + Formato.fechaCorta(compra);
+
+        String tabla;
+        String nota;
+        LocalDate vigencia = compra;
+        long diasTabla = dias;
+        boolean trunca = false;
+        if (reglasMuebles.negocioAfiliado(c.tipoProducto(), venta)) {
+            tabla = "COPPELPAY";
+            nota = "Negocio afiliado (cat_bonificacionescoppelpay)";
+            LocalDate minima = catalogo.primeraVigencia(tabla);
+            if (minima != null && compra.isBefore(minima)) {
+                vigencia = minima;
+            }
+            diasTabla = Math.max(0, dias);
+            trunca = true; // CAST(... AS INT) sin redondear
+        } else if (diasAjuste == 0 && c.tipoProducto() != ReglasMuebles.TIPO_MOTO) {
+            tabla = "MUEBLES_BENEFICIOS";
+            nota = "Producto con beneficio (cat_bonificacion_muebles_beneficios)";
+        } else if (diasAjuste > 0 || c.tipoProducto() == ReglasMuebles.TIPO_MOTO) {
+            tabla = "MOTOS";
+            nota = "Moto o producto con días de ajuste (CAT_BONIFICACIONESMOTOS)";
+        } else {
+            tabla = "MUEBLES";
+            nota = "";
+            diasTabla = Math.max(1, dias); // fun_calculabonificacion: en muebles al menos 1 día
+        }
+        OptionalDouble factor;
+        if (diasTabla < 0) {
+            factor = OptionalDouble.of(0); // la tabla no tiene días negativos: sin bonificación
+        } else {
+            factor = catalogo.factor(tabla, plazo, diasTabla, vigencia);
+        }
+        if (factor.isEmpty()) {
+            return null;
+        }
+        double bruto = c.interesSobreCompra() * factor.getAsDouble();
+        long importe = trunca ? (long) bruto : Math.round(bruto);
+        // fnGeSaldaCon: la bonificación no puede pasar del saldo a la fecha
+        importe = Math.min(importe, c.saldoFecha());
+        return new Bonificacion(c.interesSobreCompra(), diasTabla, plazo, factor.getAsDouble(), importe,
+                (nota + ajuste).replaceFirst("^, ", ""));
+    }
+
+    /** fun_validarplazo: plazos de muebles agrupados en 12, 18, 24, 30 y 36. */
+    static int plazoCatalogo(int plazo) {
+        if (plazo < 18) {
+            return 12;
+        }
+        if (plazo < 24) {
+            return 18;
+        }
+        if (plazo < 30) {
+            return 24;
+        }
+        return plazo < 36 ? 30 : 36;
+    }
+
+    /** fun_calculardiadepago: día siguiente a la venta más 1 mes (venta futura: 2 meses y al menos 60 días). */
+    static LocalDate diaDePago(boolean ventaFutura, LocalDate venta) {
+        LocalDate pago = venta.plusDays(1).plusMonths(ventaFutura ? 2 : 1);
+        long dias = ChronoUnit.DAYS.between(venta, pago);
+        return ventaFutura && dias < 60 ? pago.plusDays(60 - dias) : pago;
     }
 
     private static Totales totales(List<Renglon> renglones) {
