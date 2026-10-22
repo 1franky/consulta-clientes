@@ -45,6 +45,13 @@ public final class CalculadoraEstadoCuenta {
     /** Sin consulta a la base (modo demo): las muestras solo imprimen I35; I23, I41 y S50 no. */
     private static final Set<String> SITUACIONES_IMPRESAS = Set.of("I35");
 
+    /**
+     * Orden de las carteras en el detalle. Las muestras confirman ropa → préstamos y Deuda Bancoppel → muebles;
+     * tiempo aire y reestructura no aparecen en ninguna, su lugar es supuesto.
+     */
+    private static final List<TipoCartera> ORDEN_CARTERA = List.of(TipoCartera.ROPA, TipoCartera.PRESTAMOS,
+            TipoCartera.DEUDA_BANCOPPEL, TipoCartera.TIEMPO_AIRE, TipoCartera.REESTRUCTURA, TipoCartera.MUEBLES);
+
     /** El impresor tiene lugar para 4 monedas de abono puntual. */
     public static final int MAX_MONEDAS = 4;
     /** fnGeConvenioVigente: días que dura vigente un convenio. */
@@ -303,12 +310,23 @@ public final class CalculadoraEstadoCuenta {
         return Math.max(0, (corte.getYear() - venta.getYear()) * 12L + corte.getMonthValue() - venta.getMonthValue());
     }
 
-    /** Ropa primero y después las demás cuentas en el orden de los listados. */
-    private static List<Cuenta> ordenar(List<Cuenta> cuentas) {
+    /**
+     * Orden del impresor (saldosemisioncorreos: orden, fecha de compra desc, factura desc): por cartera y, dentro de
+     * cada una, de la compra más reciente a la más antigua. Las cuentas perdidas no van al final.
+     */
+    static List<Cuenta> ordenar(List<Cuenta> cuentas) {
         List<Cuenta> ordenadas = new ArrayList<>(cuentas);
-        ordenadas.sort(Comparator.comparing((Cuenta c) -> c.tipo() != TipoCartera.ROPA)
-                .thenComparing(Cuenta::cuentaPerdida));
+        ordenadas.sort(Comparator.comparingInt((Cuenta c) -> ORDEN_CARTERA.indexOf(c.tipo()))
+                .thenComparing(Cuenta::fechaCompra, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(Comparator.comparingLong(Cuenta::numeroFactura).reversed()));
         return ordenadas;
+    }
+
+    /** Descripción como la imprime el impresor: 8 caracteres (10 en Deuda Bancoppel). */
+    static String descripcion(Cuenta c) {
+        String articulo = c.articulo().strip();
+        int largo = c.tipo() == TipoCartera.DEUDA_BANCOPPEL ? 10 : 8;
+        return articulo.length() > largo ? articulo.substring(0, largo) : articulo;
     }
 
     private Renglon renglon(Cuenta c, LocalDate siguienteCorte) {
@@ -337,7 +355,7 @@ public final class CalculadoraEstadoCuenta {
             ultimoAbono = Formato.fechaCorta(c.fechaUltimoMovimiento());
         }
 
-        return new Renglon(c, c.articulo(), Formato.fechaCorta(c.fechaCompra()), debia, c.abonosMes(), c.comprasMes(),
+        return new Renglon(c, descripcion(c), Formato.fechaCorta(c.fechaCompra()), debia, c.abonosMes(), c.comprasMes(),
                 interesMes, debe, paguelo, c.abonoMensual(), atrasado, pase, ultimoAbono, bonificacion);
     }
 

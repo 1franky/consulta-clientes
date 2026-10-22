@@ -168,6 +168,19 @@ class CalculadoraEstadoCuentaTest {
     }
 
     @Test
+    void ordenDelImpresorPorCarteraYFechaYDescripcionA8Caracteres() {
+        // Como la muestra: PRESTAMO 23-Sep-25, ESTUFA 16-Nov-25 (factura 14861), MOTOCICL 16-Nov-25 (14859), BAFLE
+        Cuenta bafle = muebles(LocalDate.of(2025, 6, 14), 0, 0, "BAFLE 15\"", 7608);
+        Cuenta moto = muebles(LocalDate.of(2025, 11, 16), 0, 55, "MOTOCICLET", 14859);
+        Cuenta estufa = muebles(LocalDate.of(2025, 11, 16), 0, 0, "ESTUFA", 14861);
+        Cuenta prestamo = new Cuenta(TipoCartera.PRESTAMOS, false, 797, 1093, "PRESTAMO", 0, LocalDate.of(2025, 9, 23),
+                12, 0, 182, 0, 0, 1215, 0, 0, 0, 0, 0, 0, 0, null, null, false, false, false);
+        List<Cuenta> orden = CalculadoraEstadoCuenta.ordenar(List.of(bafle, moto, estufa, prestamo));
+        assertEquals(List.of(prestamo, estufa, moto, bafle), orden);
+        assertEquals("MOTOCICL", CalculadoraEstadoCuenta.descripcion(moto));
+    }
+
+    @Test
     void diaDePagoYPlazoDelCatalogo() {
         assertEquals(LocalDate.of(2025, 12, 17), CalculadoraEstadoCuenta.diaDePago(false, LocalDate.of(2025, 11, 16)));
         assertEquals(LocalDate.of(2026, 1, 17), CalculadoraEstadoCuenta.diaDePago(true, LocalDate.of(2025, 11, 16)));
@@ -185,7 +198,12 @@ class CalculadoraEstadoCuentaTest {
 
     /** Venta de muebles a 12 meses con saldo de 20,000 y el interés sobre compra indicado. */
     private static Cuenta muebles(LocalDate venta, long interesSobreCompra, int tipoProducto) {
-        return new Cuenta(TipoCartera.MUEBLES, false, 1, 1, "ARTICULO", 1, venta, 12, interesSobreCompra, 1000, 0, 0,
+        return muebles(venta, interesSobreCompra, tipoProducto, "ARTICULO", 1);
+    }
+
+    private static Cuenta muebles(LocalDate venta, long interesSobreCompra, int tipoProducto, String articulo,
+                                  long factura) {
+        return new Cuenta(TipoCartera.MUEBLES, false, 1, factura, articulo, 1, venta, 12, interesSobreCompra, 1000, 0, 0,
                 20000, 0, 0, 0, 0, 0, 0, 0, venta, null, false, false, false,
                 0, 0, 0, "", null, 0, 0, tipoProducto);
     }

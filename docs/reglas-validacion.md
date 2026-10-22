@@ -41,11 +41,15 @@ con *(deducida)*. Las marcadas *(impresor)* salen del código del programa que i
 
 ## Sus compras al detalle
 
-Se pintan hasta 5 cuentas; ropa primero y después las demás en el orden de los listados. Los totales y el pase a
-pagar consideran **todas** las cuentas. Las cuentas con convenio de devolución no se consideran.
+Se pintan hasta 5 cuentas en el orden del impresor *(impresor)*: por cartera (ropa, préstamos, Deuda Bancoppel,
+tiempo aire, reestructura, muebles) y, dentro de cada una, de la compra más reciente a la más antigua y por factura
+mayor. Las cuentas perdidas van en su lugar por fecha, no al final. Las muestras confirman ropa → préstamos y Deuda
+Bancoppel → muebles; el lugar de tiempo aire y reestructura es supuesto. Las facturas [19] van en el mismo orden.
+Los totales y el pase a pagar consideran **todas** las cuentas. Las cuentas con convenio de devolución no se consideran.
 
 | Columna | Regla |
 |---|---|
+| Artículo *(impresor)* | Descripción a 8 caracteres (10 en Deuda Bancoppel): `REFRIGERAD` → `REFRIGER`. |
 | [5] Fecha de compra | `FechaVenta` (muebles), `FechaUltimaCompra` (ropa), `FechaPrestamo` (préstamos). |
 | Usted debía *(deducida)* | Saldo a la fecha + int. adic. mes anterior + abonos del mes − compras del mes. |
 | Menos abonos | `AbonoDelMes` / `AbonosDelMes`. |
