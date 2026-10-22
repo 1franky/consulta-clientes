@@ -337,9 +337,6 @@ public final class CalculadoraEstadoCuenta {
         if (c.cuentaPerdida()) {
             return new Bonificacion(0, 0, c.plazo(), 0, 0, "Cuenta perdida: sin bonificación");
         }
-        if (c.vencido() > 0) {
-            return new Bonificacion(0, 0, c.plazo(), 0, 0, "Con atraso: sin bonificación");
-        }
         if (c.tipo() == TipoCartera.TIEMPO_AIRE) {
             return new Bonificacion(c.bonificacionMes(), 0, c.plazo(), 1, Math.min(c.bonificacionMes(), debe),
                     "Tiempo aire: bonificación del mes × 1");

@@ -74,7 +74,10 @@ páguelo      = usted debe − bonificación
 - **Muebles:** al menos 1 día transcurrido.
 - **Ropa:** si la cuenta se quedó sin saldo (`fec_sinsaldo`) 30 días o menos antes del siguiente corte, se bonifica
   el interés completo.
-- **Con atraso** (vencido > 0) o **cuenta perdida:** sin bonificación.
+- **Cuenta perdida:** sin bonificación. El atraso **no** quita la bonificación: los procedimientos no revisan el
+  vencido y las muestras traen cuentas con atraso y bonificación. Las cuentas viejas dan 0 porque ya pasó el plazo.
+- **Muebles desde dic-2025** (`proc_calculabonificacionmuebles`): ajusta la fecha de compra por tipo de producto y
+  usa funciones propias para motos y negocios afiliados. **Pendiente:** el validador usa el cálculo general.
 - **Tiempo aire:** bonificación del mes × 1.
 - **Sin catálogo** (Deuda Bancoppel, Reestructura, o un plazo que no está en el catálogo): se toma el `SaldaCon` del
   listado y la pantalla lo indica para verificarlo a mano.
