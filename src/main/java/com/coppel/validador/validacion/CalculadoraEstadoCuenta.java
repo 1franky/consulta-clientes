@@ -158,7 +158,7 @@ public final class CalculadoraEstadoCuenta {
         }
 
         // Marca de contacto: el impresor solo la pinta si el cliente debe y tiene atrasado
-        String marca = exp.marcasContacto().isEmpty() ? "" : exp.marcasContacto().get(0).split(":")[0].trim();
+        String marca = marcaContacto(exp.marcasContacto());
         String marcaListado = marca;
         if (totales.ustedDebe() == 0 || atrasado == 0) {
             marca = "";
@@ -178,7 +178,7 @@ public final class CalculadoraEstadoCuenta {
                     ? cuentaDefinir.articulo() + " a plazo de 12 meses comprada el " + cuentaDefinir.fechaCompra()
                     + " (14 o más meses)" + (marca.equals("3MSC") ? " y marca 3MSC" : "")
                     : "Marca 3MSC";
-        } else if (marca.equals("NCE")) {
+        } else if (marca.contains("NCE")) {
             aviso = AVISO_INTERESES;
             explicacionAviso = "Marca NCE";
         } else if (puntualidad.equals("A")) {
@@ -308,6 +308,18 @@ public final class CalculadoraEstadoCuenta {
     /** fnGeMesesTranscurridos: diferencia de meses calendario, sin contar días. */
     static long mesesTranscurridos(LocalDate venta, LocalDate corte) {
         return Math.max(0, (corte.getYear() - venta.getYear()) * 12L + corte.getMonthValue() - venta.getMonthValue());
+    }
+
+    /**
+     * clv_clientenocontactado como lo arma la emisión (spccreaDirectorioCompleto03): "NTE", luego se agrega " NCE",
+     * y 3MSC reemplaza todo. El impresor lo pinta tal cual, así que NTE y NCE juntas salen "NTE NCE".
+     */
+    static String marcaContacto(List<String> marcas) {
+        List<String> claves = marcas.stream().map(m -> m.split(":")[0].trim()).toList();
+        if (claves.contains("3MSC")) {
+            return "3MSC";
+        }
+        return ((claves.contains("NTE") ? "NTE" : "") + (claves.contains("NCE") ? " NCE" : "")).trim();
     }
 
     /**

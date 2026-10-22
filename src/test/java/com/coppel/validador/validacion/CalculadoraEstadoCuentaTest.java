@@ -127,6 +127,17 @@ class CalculadoraEstadoCuentaTest {
     }
 
     @Test
+    void laMarcaSeArmaComoLaEmision() {
+        assertEquals("NTE NCE", CalculadoraEstadoCuenta.marcaContacto(
+                List.of("NCE: NO CUENTA CON CORREO", "NTE: NO TIENE TELEFONO")));
+        assertEquals("NCE", CalculadoraEstadoCuenta.marcaContacto(List.of("NCE: NO CUENTA CON CORREO")));
+        assertEquals("NTE", CalculadoraEstadoCuenta.marcaContacto(List.of("NTE: NO TIENE TELEFONO")));
+        assertEquals("3MSC", CalculadoraEstadoCuenta.marcaContacto(
+                List.of("3MSC: 3 MESES", "NCE: NO CUENTA CON CORREO")));
+        assertEquals("", CalculadoraEstadoCuenta.marcaContacto(List.of()));
+    }
+
+    @Test
     void laMarcaNoSeImprimeSinAtrasadoYElDineroElectronicoSinSaldoNoLlevaMonedas() {
         ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
         ExpedienteCliente conMarca = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(),

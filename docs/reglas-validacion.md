@@ -103,7 +103,7 @@ Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificac
 | [22] Centro de Atención | Texto fijo: `Dudas o comentarios llama al Centro de Atención al Cliente:800 220 7735`. |
 | [24] Monedas *(impresor)* | Número de abonos puntuales (`Desc_Corte` = "Corte N"), máximo 4. Sin saldo de dinero electrónico no se rellena ninguna. |
 | Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`; con saldo 0 no se imprime importe. |
-| Marca de contacto *(impresor)* | `3MSC`, `NTE` o `NCE` según las banderas de `tmp_clientenocontactado`. Solo se imprime si el cliente debe y tiene atrasado. |
+| Marca de contacto *(impresor)* | Banderas de `tmp_clientenocontactado` armadas como la emisión (`spccreaDirectorioCompleto03`): `NTE`, se agrega ` NCE` (ambas: `NTE NCE`) y `3MSC` reemplaza todo. Solo se imprime si el cliente debe y tiene atrasado. |
 | [17] Leyenda de mercadotecnia | Se valida contra la carpeta compartida `\Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas Mercadotecnia\<año>` (las capturadas del 16 al 20); el validador solo lo indica. |
 | [14], [23], [25] | Revisión visual: teléfono de tienda, número de página y código QR. |
 
