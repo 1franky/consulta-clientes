@@ -5,6 +5,7 @@ import com.coppel.validador.config.Config.ConexionDb;
 import com.coppel.validador.model.Cliente;
 import com.coppel.validador.model.Cuenta;
 import com.coppel.validador.model.ExpedienteCliente;
+import com.coppel.validador.model.ExpedienteCliente.ContactoAlCorte;
 import com.coppel.validador.model.ExpedienteCliente.DineroElectronico;
 import com.coppel.validador.model.ExpedienteCliente.SituacionEspecial;
 import com.coppel.validador.model.TablaListado;
@@ -162,6 +163,9 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 }
             }
 
+            List<Registro> contacto = consulta.ejecutar("contactoAlCorte", "Contacto al corte");
+            ContactoAlCorte contactoAlCorte = contacto.isEmpty() ? null : mapearContactoAlCorte(contacto.get(0));
+
             List<String> situacionesImpresas = new ArrayList<>();
             for (Registro r : consulta.ejecutar("situacionesImpresas", "Situaciones impresas")) {
                 String situacion = Registro.aTexto(r.opcional("situacion", "situacion")).strip();
@@ -189,7 +193,7 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 LOG.warning("[" + numeroCliente + "] " + aviso);
             }
             return new ExpedienteCliente(fechaCorte, cliente, cuentas, dinero, situaciones, marcas, listados, avisos,
-                    situacionesImpresas, abonosYMesesVencidos, fechaDatos);
+                    situacionesImpresas, abonosYMesesVencidos, fechaDatos, contactoAlCorte);
         } catch (SQLException e) {
             LOG.log(Level.SEVERE, "[" + db.nombre() + "] Error de conexión consultando el cliente " + numeroCliente
                     + " (SQLState " + e.getSQLState() + ", código " + e.getErrorCode() + ")", e);
@@ -366,7 +370,20 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
         if (m.find()) {
             abonosPuntuales = Integer.parseInt(m.group());
         }
-        return new DineroElectronico(r.entero("saldo", "SaldoALaFecha", "SaldoFecha"), abonosPuntuales);
+        Object saldoMesAnterior = r.opcional("saldoMesAnterior", "SaldoMesAnterior");
+        return new DineroElectronico(r.entero("saldo", "SaldoALaFecha", "SaldoFecha"), abonosPuntuales,
+                saldoMesAnterior == null ? null : Registro.aEntero(saldoMesAnterior));
+    }
+
+    /** Consulta contactoAlCorte: una fila con lo que proc_clientenocontactado revisa, hasta el corte. */
+    private static ContactoAlCorte mapearContactoAlCorte(Registro r) {
+        return new ContactoAlCorte(
+                Registro.aFecha(r.opcional("ultimoMovimiento", "ultimoMovimiento")),
+                Registro.aBooleano(r.opcional("movimientoPosterior", "movimientoPosterior")),
+                Registro.aBooleano(r.opcional("situacionAbogado", "situacionAbogado")),
+                Registro.aBooleano(r.opcional("telefonoVerificado", "telefonoVerificado")),
+                Registro.aBooleano(r.opcional("correoConfirmado", "correoConfirmado")),
+                Registro.aBooleano(r.opcional("conflicto", "conflicto")));
     }
 
     /** tmp_CteSituacionEsp (proc_carterainformativa). */

@@ -15,6 +15,7 @@ import java.util.Map;
  * @param abonosYMesesVencidos abonos vencidos + meses vencidos por cuenta (llave {@link #llave}), como los calcula
  *                             proc_clientenocontactado; vacío si el origen no los consulta
  * @param fechaDatos           catFechas: fecha de los datos de los listados, o null si no se conoce
+ * @param contactoAlCorte      datos para rehacer las marcas de contacto al corte, o null si el origen no los consulta
  */
 public record ExpedienteCliente(
         LocalDate fechaCorte,
@@ -27,13 +28,14 @@ public record ExpedienteCliente(
         List<String> avisos,
         List<String> situacionesImpresas,
         Map<String, Integer> abonosYMesesVencidos,
-        LocalDate fechaDatos) {
+        LocalDate fechaDatos,
+        ContactoAlCorte contactoAlCorte) {
 
     public ExpedienteCliente(LocalDate fechaCorte, Cliente cliente, List<Cuenta> cuentas,
                              DineroElectronico dineroElectronico, List<SituacionEspecial> situacionesEspeciales,
                              List<String> marcasContacto, List<TablaListado> listados, List<String> avisos) {
         this(fechaCorte, cliente, cuentas, dineroElectronico, situacionesEspeciales, marcasContacto, listados, avisos,
-                null, Map.of(), null);
+                null, Map.of(), null, null);
     }
 
     public ExpedienteCliente(LocalDate fechaCorte, Cliente cliente, List<Cuenta> cuentas,
@@ -41,7 +43,7 @@ public record ExpedienteCliente(
                              List<String> marcasContacto, List<TablaListado> listados, List<String> avisos,
                              List<String> situacionesImpresas, Map<String, Integer> abonosYMesesVencidos) {
         this(fechaCorte, cliente, cuentas, dineroElectronico, situacionesEspeciales, marcasContacto, listados, avisos,
-                situacionesImpresas, abonosYMesesVencidos, null);
+                situacionesImpresas, abonosYMesesVencidos, null, null);
     }
 
     /** Llave de abonosYMesesVencidos: cartera y factura (0 en ropa y tiempo aire, que no tienen factura). */
@@ -49,8 +51,27 @@ public record ExpedienteCliente(
         return tipo.name() + ":" + factura;
     }
 
-    public record DineroElectronico(long saldo, int abonosPuntuales) {
+    /**
+     * @param saldoMesAnterior saldo al cierre del mes anterior (SaldoMesAnterior), o null si el origen no lo trae
+     */
+    public record DineroElectronico(long saldo, int abonosPuntuales, Long saldoMesAnterior) {
         public static final DineroElectronico VACIO = new DineroElectronico(0, 0);
+
+        public DineroElectronico(long saldo, int abonosPuntuales) {
+            this(saldo, abonosPuntuales, null);
+        }
+    }
+
+    /**
+     * Lo que proc_clientenocontactado revisa para las marcas, sin lo que pasó después del corte.
+     *
+     * @param ultimoMovimiento    FechaUltimoMov o FechaDelConvenio más reciente hasta el corte (vigentes y saldadas)
+     * @param movimientoPosterior alguna cuenta tiene FechaUltimoMov después del corte: la fecha anterior se perdió
+     * @param situacionAbogado    situación de abogado (área 5, proceso 90) marcada hasta el corte
+     * @param conflicto           FlagClienteConflicto
+     */
+    public record ContactoAlCorte(LocalDate ultimoMovimiento, boolean movimientoPosterior, boolean situacionAbogado,
+                                  boolean telefonoVerificado, boolean correoConfirmado, boolean conflicto) {
     }
 
     public record SituacionEspecial(String situacion, String causa, LocalDate fecha, String descripcion) {

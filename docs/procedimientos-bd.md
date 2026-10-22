@@ -21,6 +21,7 @@ corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 | `dineroElectronico` | `spcQCDineroElectronico` | `@NumCte INT` | **Sin filas**: tabla `tmpDineroElectronico3` |
 | `informativa` | `proc_carterainformativa` | `@num_cliente INT` | `SELECT 1`; situaciones en `tmp_CteSituacionEsp` |
 | `marcasContacto` | `proc_clientenocontactado` | `@num_cliente INT` | **Sin filas**: tabla `tmp_clientenocontactado` |
+| `contactoAlCorte` | `SELECT` a carteras vigentes y saldadas, `mae_clientessituaciones`, `maeTelefonos`, `mae_correos`, `maeDirectorio` | `:cliente`, `:corte` | Una fila: `ultimoMovimiento`, `movimientoPosterior`, `situacionAbogado`, `telefonoVerificado`, `correoConfirmado`, `conflicto` |
 | `inicialCiudad` | `SELECT` a `maeDirectorio` + `CatCiudades` | `:cliente` | `InicialCiudad` (ACYN) |
 | `fechaDatos` | `SELECT` a `catFechas` | — | Fecha de los datos; de ella sale el corte |
 | `muebles*` | `SELECT` a `cat_configuracion_muebles_beneficios`, `cat_plazosmuebles`, `catnegocios`, `catTipoProducto`, `cat_configuracionnegocioafiliados` | — | Configuración de `proc_calculabonificacionmuebles`, al abrir |
@@ -81,7 +82,7 @@ en **Listados > Avisos**.
 | Muebles, Deuda Bancoppel, Reestructuras, CP Muebles | `NumeroTienda`, `NumeroFactura`, `DescripcionArticulo`, `NumeroDeArticulos`, `FechaVenta`, `PlazoVenta`, `InteresSobreCompra`, `AbonoMensual`, `AbonoDelMes`, `SaldoALaFecha`, `InteresAdicionalMesAnt`, `InteresAdicional`, `NuevoInteresCargado`, `Vencido`, `SaldaCon`, `SaldaCon20SigMes`, `FechaUltimoMov`, `TipoUltimoMov`, `ImporteVenta`, `FechaDelConvenio`, `FechaConvenioDevolucion`; CP Muebles: `SaldoMesAnterior`, `SalMinZonaC` |
 | Ropa, Tiempo aire, CP Ropa | `NumeroTienda`, `FechaUltimaCompra`, `idu_Plazo`, `InteresSobreCompra`, `AbonoBase`, `AbonosDelMes`, `ComprasDelMes`, `SaldoALaFecha`, `InteresAdicionalMesAnt`, `InteresAdicionalMesAct`, `NuevoInteresCargado`, `Vencido2` / `Vencido`, `SaldaCon`, `SaldaCon20SigMes`, `FechaUltimoMov`, `TipoUltimoMov`, `MinimoaPagarMesAct`, `EnganchesDelMes`, `BonificacionOtorgada`, `fec_sinsaldo`, `MarcaConvDevolucion`; CP Ropa: `Saldo20MesAnterior`, `SalMinZonaC` |
 | Préstamos, CP Préstamos | `NumeroTienda`, `NumeroFactura`, `FechaPrestamo`, `Plazo`, `InteresFinanciamiento`, `AbonoMensual`, `AbonosDelMes`, `PrestamosDelMes`, `SaldoALaFecha`, `InteresAdicional`, `NuevoInteresCargado` / `InteresAdicionalMes`, `Vencido`, `SaldaCon`, `FechaUltimoMov`, `TipoUltimoMov`, `FechaDelConvenio` |
-| Dinero electrónico | `SaldoALaFecha`, `Desc_Corte` ("Corte N") |
+| Dinero electrónico | `SaldoALaFecha`, `SaldoMesAnterior`, `Desc_Corte` ("Corte N") |
 | Cartera informativa | `Clv_situacion`, `num_causasituacion`, `fec_marcado`, `Nom_descsituacion` |
 | Marcas de contacto | `clv_3MSC`, `clv_NTE`, `clv_NCE` |
 

@@ -158,7 +158,7 @@ class CalculadoraEstadoCuentaTest {
 
     private static ExpedienteCliente conDatos(ExpedienteCliente exp, LocalDate datos) {
         return new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(), exp.dineroElectronico(), List.of(),
-                List.of(), List.of(), List.of(), null, Map.of(), datos);
+                List.of(), List.of(), List.of(), null, Map.of(), datos, null);
     }
 
     @Test
@@ -228,6 +228,41 @@ class CalculadoraEstadoCuentaTest {
         assertEquals("", esp.marcaContacto());
         assertTrue(esp.explicacionAviso().contains("NCE"), esp.explicacionAviso());
         assertEquals(0, esp.monedasAbonoPuntual());
+    }
+
+    @Test
+    void conDatosPosterioresAlCorteElDineroElectronicoEsElDelCierreAnterior() {
+        // Muestra: $136; el laboratorio (18-Oct) trae 139 por movimientos del 15 y 16 de octubre
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        ExpedienteCliente conDe = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(),
+                new ExpedienteCliente.DineroElectronico(139, 0, 136L), List.of(), List.of(), List.of(), List.of(),
+                null, Map.of(), LocalDate.of(2026, 10, 18), null);
+        assertEquals(136, calculadora.calcular(conDe).saldoDineroElectronico());
+        assertEquals(139, calculadora.calcular(conDatos(conDe, CORTE)).saldoDineroElectronico());
+    }
+
+    @Test
+    void marcasAlCorteSinConveniosNiSituacionesPosteriores() {
+        Map<String, Integer> vencidos = Map.of("MUEBLES:1", 7);
+        // Último movimiento en marzo: 3MSC (el convenio de octubre ya no cuenta)
+        var sinContacto = new ExpedienteCliente.ContactoAlCorte(LocalDate.of(2026, 3, 1), false, false,
+                true, false, false);
+        assertEquals(List.of("3MSC"), CalculadoraEstadoCuenta.marcasAlCorte(sinContacto, CORTE, "C", vencidos,
+                List.of("NCE")));
+        // Movimiento dentro de los 3 meses: teléfono y correo
+        var conMovimiento = new ExpedienteCliente.ContactoAlCorte(LocalDate.of(2026, 7, 1), false, false,
+                true, false, false);
+        assertEquals(List.of("NCE"), CalculadoraEstadoCuenta.marcasAlCorte(conMovimiento, CORTE, "C", vencidos,
+                List.of()));
+        // Situación de abogado al corte o sin vencidos suficientes: sin marca
+        var abogado = new ExpedienteCliente.ContactoAlCorte(null, false, true, false, false, false);
+        assertEquals(List.of(), CalculadoraEstadoCuenta.marcasAlCorte(abogado, CORTE, "C", vencidos, List.of()));
+        assertEquals(List.of(), CalculadoraEstadoCuenta.marcasAlCorte(sinContacto, CORTE, "A",
+                Map.of("MUEBLES:1", 1), List.of()));
+        // La fecha anterior se perdió por un movimiento posterior: quedan las marcas del listado
+        var posterior = new ExpedienteCliente.ContactoAlCorte(null, true, false, true, false, false);
+        assertEquals(List.of("NCE"), CalculadoraEstadoCuenta.marcasAlCorte(posterior, CORTE, "C", vencidos,
+                List.of("NCE")));
     }
 
     @Test

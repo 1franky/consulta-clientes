@@ -191,7 +191,18 @@ public final class CalculadoraEstadoCuenta {
         }
 
         // Marca de contacto: el impresor solo la pinta si el cliente debe y tiene atrasado
+        boolean datosPosteriores = exp.fechaDatos() != null && exp.fechaDatos().isAfter(corte);
         String marca = marcaContacto(exp.marcasContacto());
+        String explicacionMarca = "";
+        if (datosPosteriores && exp.contactoAlCorte() != null) {
+            String alCorte = marcaContacto(marcasAlCorte(exp.contactoAlCorte(), corte, puntualidad,
+                    exp.abonosYMesesVencidos(), exp.marcasContacto()));
+            if (!alCorte.equals(marca)) {
+                explicacionMarca = ". Marca al corte " + (alCorte.isEmpty() ? "ninguna" : alCorte) + "; con los datos al "
+                        + Formato.fechaCorta(exp.fechaDatos()) + " sería " + (marca.isEmpty() ? "ninguna" : marca);
+                marca = alCorte;
+            }
+        }
         String marcaListado = marca;
         if (totales.ustedDebe() == 0 || atrasado == 0) {
             marca = "";
@@ -206,6 +217,7 @@ public final class CalculadoraEstadoCuenta {
         if (!marcaListado.isEmpty() && marca.isEmpty() && !puntualidad.equals("Z")) {
             explicacionAviso += ". La marca " + marcaListado + " no se imprime porque el cliente no tiene atrasado";
         }
+        explicacionAviso += explicacionMarca;
 
         String situacionImpresa;
         if (exp.situacionesImpresas() != null) {
@@ -249,8 +261,10 @@ public final class CalculadoraEstadoCuenta {
         boolean domiciliada = renglones.subList(0, Math.min(EstadoCuentaEsperado.MAX_RENGLONES, renglones.size()))
                 .stream().anyMatch(r -> r.articulo().strip().startsWith("*") || r.cuenta().domiciliada());
 
-        // Dinero electrónico: sin saldo no se rellena ninguna moneda
-        long saldoDe = exp.dineroElectronico().saldo();
+        // Dinero electrónico: sin saldo no se rellena ninguna moneda. Con datos posteriores al corte, el saldo al corte
+        // es el del cierre del mes anterior (las muestras imprimen SaldoMesAnterior, sin los movimientos de después)
+        Long saldoMesAnterior = exp.dineroElectronico().saldoMesAnterior();
+        long saldoDe = datosPosteriores && saldoMesAnterior != null ? saldoMesAnterior : exp.dineroElectronico().saldo();
         int monedas = saldoDe > 0 ? Math.min(MAX_MONEDAS, exp.dineroElectronico().abonosPuntuales()) : 0;
 
         alertas.addAll(alertasSituacion(cliente, exp.situacionesEspeciales()));
@@ -496,6 +510,39 @@ public final class CalculadoraEstadoCuenta {
             return "3MSC";
         }
         return ((claves.contains("NTE") ? "NTE" : "") + (claves.contains("NCE") ? " NCE" : "")).trim();
+    }
+
+    /**
+     * Marcas de proc_clientenocontactado rehechas al corte, para cuando los datos son posteriores: el procedimiento
+     * mide los 3 meses sin movimiento desde catFechas y cuenta convenios y situaciones de abogado de después del
+     * corte. Califica el cliente con conflicto o con alguna cuenta con 2 abonos y meses vencidos (1 si no es A ni B);
+     * los vencidos son los de catFechas. Si una FechaUltimoMov ya es posterior al corte no se sabe la anterior, y si
+     * con eso saldría 3MSC se dejan las marcas del listado.
+     */
+    static List<String> marcasAlCorte(ExpedienteCliente.ContactoAlCorte contacto, LocalDate corte, String puntualidad,
+                                      Map<String, Integer> abonosYMesesVencidos, List<String> marcasListado) {
+        if (contacto.situacionAbogado()) {
+            return List.of();
+        }
+        int minimo = puntualidad.equals("A") || puntualidad.equals("B") ? 2 : 1;
+        boolean califica = contacto.conflicto()
+                || abonosYMesesVencidos.values().stream().anyMatch(v -> v >= minimo);
+        if (!califica) {
+            return List.of();
+        }
+        boolean sinMovimiento = contacto.ultimoMovimiento() == null
+                || contacto.ultimoMovimiento().isBefore(corte.minusMonths(3));
+        if (sinMovimiento) {
+            return contacto.movimientoPosterior() ? marcasListado : List.of("3MSC");
+        }
+        List<String> marcas = new ArrayList<>();
+        if (!contacto.telefonoVerificado()) {
+            marcas.add("NTE");
+        }
+        if (!contacto.correoConfirmado()) {
+            marcas.add("NCE");
+        }
+        return marcas;
     }
 
     /**

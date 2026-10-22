@@ -109,8 +109,8 @@ Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificac
 | [21] Domiciliada *(impresor)* | `*_Domiciliada` bajo los totales si la descripción de algún artículo del detalle empieza con `*` (o la cuenta trae la columna `Domiciliada`). En los listados del laboratorio no aparece. |
 | [22] Centro de Atención | Texto fijo: `Dudas o comentarios llama al Centro de Atención al Cliente:800 220 7735`. |
 | [24] Monedas *(impresor)* | Número de abonos puntuales (`Desc_Corte` = "Corte N"), máximo 4. Sin saldo de dinero electrónico no se rellena ninguna. |
-| Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`; con saldo 0 no se imprime importe. |
-| Marca de contacto *(impresor)* | Banderas de `tmp_clientenocontactado` armadas como la emisión (`spccreaDirectorioCompleto03`): `NTE`, se agrega ` NCE` (ambas: `NTE NCE`) y `3MSC` reemplaza todo. Solo se imprime si el cliente debe y tiene atrasado. |
+| Dinero electrónico | `SaldoALaFecha` de `tmpDineroElectronico3`; con saldo 0 no se imprime importe. Si los datos (`catFechas`) son posteriores al corte se usa `SaldoMesAnterior`, el saldo al cierre: las muestras lo imprimen sin los movimientos de después del corte. |
+| Marca de contacto *(impresor)* | Banderas de `tmp_clientenocontactado` armadas como la emisión (`spccreaDirectorioCompleto03`): `NTE`, se agrega ` NCE` (ambas: `NTE NCE`) y `3MSC` reemplaza todo. Solo se imprime si el cliente debe y tiene atrasado. Si los datos son posteriores al corte, la marca se rehace al corte con `sp.contactoAlCorte`. El procedimiento mide los 3 meses desde `catFechas` y cuenta convenios y situaciones de abogado de después del corte. Si una `FechaUltimoMov` ya es posterior al corte, la anterior se perdió y se deja la marca del listado. |
 | [17] Leyenda de mercadotecnia | Se valida contra la carpeta compartida `\Calidad Sist Carteras\Productos Calidad\México\Especiales\Leyendas Mercadotecnia\<año>` (las capturadas del 16 al 20); el validador solo lo indica. |
 | [14], [23], [25] | Revisión visual: teléfono de tienda, número de página y código QR. |
 
