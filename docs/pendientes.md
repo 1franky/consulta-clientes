@@ -7,7 +7,8 @@
 | Cuentas perdidas (CP) | Se calculan igual que las normales, sin bonificación y con `CP` en "fecha de último abono". En una muestra, el "usted debe" de una cuenta perdida no coincide con ninguna columna del listado. |
 | Orden del detalle | Falta confirmar el lugar de tiempo aire y reestructura, y de préstamos frente a Deuda Bancoppel (ninguna muestra los tiene juntos). |
 | Motos con factor repetido | `CAT_BONIFICACIONESMOTOS` (plazo 12, días 31–92) tiene dos factores por día; la base toma uno sin orden definido. El validador usa el mayor, que es el que devuelve el laboratorio. Confirmar en producción. |
-| Deuda Bancoppel y Reestructura | No están en el catálogo de bonificaciones; se usa el `SaldaCon` del listado. El Excel de Calidad trae un factor de ejemplo (8.01% y 0.41) sin tabla completa. |
+| Deuda Bancoppel y Reestructura | No están en el catálogo de bonificaciones; se usa el Salda Con del listado (`SaldaCon20SigMes` si los datos son del mes del corte). Con datos posteriores al corte el `SaldaCon` es a la fecha de los datos, no al siguiente corte. |
+| Fecha de la bonificación de ropa | `spGeCartRopaVencBonifMasivo` calcula con `catFechasCorte` (identificador 1) y el de muebles le suma un mes. Confirmar qué fecha guarda `catFechasCorte` en producción (vacía en el laboratorio); las muestras coinciden con el siguiente corte. |
 | Citatorio (CIT) [18] | El validador lo calcula según el manual, pero ninguna muestra del formato 2026 lo imprime. Confirmar si sigue vigente. |
 | Cadena de cobranza | El manual menciona el año de nacimiento, pero las muestras no lo imprimen. |
 | Situación especial | Se lee de la configuración `Ctl_SubprocesosSituaciones` con área 5, proceso 18 (solo I35, como las muestras). Confirmar que es el proceso de la emisión correos; el catálogo `Cat_ProcesosSituaciones` está vacío en el laboratorio. |

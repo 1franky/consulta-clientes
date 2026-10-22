@@ -68,9 +68,14 @@ vale, porque es la que usan los procedimientos.
 
 ### Excepciones
 
+- **Bonificación mayor que el saldo a la fecha:** `fnGeSaldaCon` no la aplica (Salda Con = saldo + interés adicional),
+  y el validador tampoco.
 - **Deuda Bancoppel, Reestructura o un plazo que no está en el catálogo:** no hay factor, así que se usa
-  `usted debe − SaldaCon` del listado. Aquí **sí** depende del procedimiento, y la pantalla lo indica con una nota
-  para verificarlo a mano.
+  `usted debe − Salda Con` del listado: `SaldaCon20SigMes` (al 20 del mes siguiente a `catFechas`) si los datos son del
+  mes del corte, y `SaldaCon` si son posteriores. Aquí **sí** depende del procedimiento, y la pantalla lo indica.
+- **Fecha de la ropa:** el cálculo masivo `spGeCartRopaVencBonifMasivo` usa `catFechasCorte` (identificador 1) sin sumar
+  un mes, y el de muebles le suma uno. `catFechasCorte` está vacía en el laboratorio; el validador usa el siguiente
+  corte en ambas, que es lo que reproducen las muestras (ropa 37 días → factor 0.82).
 
 ## El archivo `bonificaciones.csv` (respaldo)
 

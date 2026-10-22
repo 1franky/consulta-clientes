@@ -82,8 +82,12 @@ páguelo      = usted debe − bonificación
   vencido y las muestras traen cuentas con atraso y bonificación. Las cuentas viejas dan 0 porque ya pasó el plazo.
 - **Muebles** (`proc_calculabonificacionmuebles`, desde dic-2025): ver [bonificaciones.md](bonificaciones.md#muebles-por-tipo-de-producto).
 - **Tiempo aire:** bonificación del mes × 1.
-- **Sin catálogo** (Deuda Bancoppel, Reestructura, o un plazo que no está en el catálogo): se toma el `SaldaCon` del
-  listado y la pantalla lo indica para verificarlo a mano.
+- **Bonificación mayor que el saldo a la fecha** (`fnGeSaldaCon`): no se aplica; "Páguelo con solo" = saldo + interés
+  adicional.
+- **Sin catálogo** (Deuda Bancoppel, Reestructura, o un plazo que no está en el catálogo): se toma el Salda Con que
+  calcula el listado (`spcListadoClientesDeudaBancoppel` con `fnGeBonificacionDeudaBancoppel`, `spcQCReestructuras`
+  con `fnGeBonificacionReestructura`). `SaldaCon20SigMes` si los datos (`catFechas`) son del mes del corte, porque
+  entonces está al siguiente corte; si no, `SaldaCon` (a la fecha de los datos).
 
 Estas reglas salen de `fun_calculabonificacion`, `fun_obtieneporcentajebonificacion`, `fnGeSaldaCon` y
 `proc_gecalculabonificacionprestamos`. Ver [bonificaciones.md](bonificaciones.md).

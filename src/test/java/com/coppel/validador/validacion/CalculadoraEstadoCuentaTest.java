@@ -128,6 +128,39 @@ class CalculadoraEstadoCuentaTest {
     }
 
     @Test
+    void bonificacionMayorQueElSaldoNoSeAplicaComoFnGeSaldaCon() {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        Cuenta ropa = exp.cuentas().get(1);
+        // Interés sobre compra 148 con 37 días (factor 0.82 → 121) pero solo debe 100 de saldo
+        Cuenta pocoSaldo = new Cuenta(ropa.tipo(), false, ropa.numeroTienda(), 0, "ROPA", 0, ropa.fechaCompra(),
+                ropa.plazo(), 148, ropa.abonoMensual(), 0, 100, 100, 0, 0, 0, 0, 0, 0, 0,
+                ropa.fechaUltimoMovimiento(), null, false, false, false);
+        ExpedienteCliente otro = new ExpedienteCliente(CORTE, exp.cliente(), List.of(pocoSaldo),
+                exp.dineroElectronico(), List.of(), List.of(), List.of(), List.of());
+        Renglon r = calculadora.calcular(otro).renglones().get(0);
+        assertEquals(0, r.bonificacion().importe());
+        assertEquals(100, r.pagueloConSolo(), "Salda Con = saldo + interés adicional");
+        assertTrue(r.bonificacion().nota().contains("fnGeSaldaCon"), r.bonificacion().nota());
+    }
+
+    @Test
+    void saldaConDelListadoSegunLaFechaDeLosDatos() {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, CORTE);
+        LocalDate siguiente = CORTE.plusMonths(1);
+        // Datos del 20-Sep: SaldaCon20SigMes es al 20-Oct, el siguiente corte
+        assertTrue(CalculadoraEstadoCuenta.saldaConDelSiguienteCorte(conDatos(exp, CORTE), siguiente));
+        // Datos del 18-Oct: SaldaCon20SigMes sería al 20-Nov; se usa SaldaCon
+        assertFalse(CalculadoraEstadoCuenta.saldaConDelSiguienteCorte(conDatos(exp, LocalDate.of(2026, 10, 18)),
+                siguiente));
+        assertFalse(CalculadoraEstadoCuenta.saldaConDelSiguienteCorte(exp, siguiente), "sin fecha de datos");
+    }
+
+    private static ExpedienteCliente conDatos(ExpedienteCliente exp, LocalDate datos) {
+        return new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(), exp.dineroElectronico(), List.of(),
+                List.of(), List.of(), List.of(), null, Map.of(), datos);
+    }
+
+    @Test
     void definirConPagosPorPlazoDe12MesesCon14MesesDesdeLaCompraAunqueNoHayaMarca() {
         ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_CON_ATRASO, CORTE);
         ExpedienteCliente sinMarca = new ExpedienteCliente(CORTE, exp.cliente(), exp.cuentas(),

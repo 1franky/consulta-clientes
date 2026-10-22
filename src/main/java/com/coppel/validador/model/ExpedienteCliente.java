@@ -14,6 +14,7 @@ import java.util.Map;
  *                            por Ctl_SubprocesosSituaciones), o null si el origen no las consulta (modo demo)
  * @param abonosYMesesVencidos abonos vencidos + meses vencidos por cuenta (llave {@link #llave}), como los calcula
  *                             proc_clientenocontactado; vacío si el origen no los consulta
+ * @param fechaDatos           catFechas: fecha de los datos de los listados, o null si no se conoce
  */
 public record ExpedienteCliente(
         LocalDate fechaCorte,
@@ -25,13 +26,22 @@ public record ExpedienteCliente(
         List<TablaListado> listados,
         List<String> avisos,
         List<String> situacionesImpresas,
-        Map<String, Integer> abonosYMesesVencidos) {
+        Map<String, Integer> abonosYMesesVencidos,
+        LocalDate fechaDatos) {
 
     public ExpedienteCliente(LocalDate fechaCorte, Cliente cliente, List<Cuenta> cuentas,
                              DineroElectronico dineroElectronico, List<SituacionEspecial> situacionesEspeciales,
                              List<String> marcasContacto, List<TablaListado> listados, List<String> avisos) {
         this(fechaCorte, cliente, cuentas, dineroElectronico, situacionesEspeciales, marcasContacto, listados, avisos,
-                null, Map.of());
+                null, Map.of(), null);
+    }
+
+    public ExpedienteCliente(LocalDate fechaCorte, Cliente cliente, List<Cuenta> cuentas,
+                             DineroElectronico dineroElectronico, List<SituacionEspecial> situacionesEspeciales,
+                             List<String> marcasContacto, List<TablaListado> listados, List<String> avisos,
+                             List<String> situacionesImpresas, Map<String, Integer> abonosYMesesVencidos) {
+        this(fechaCorte, cliente, cuentas, dineroElectronico, situacionesEspeciales, marcasContacto, listados, avisos,
+                situacionesImpresas, abonosYMesesVencidos, null);
     }
 
     /** Llave de abonosYMesesVencidos: cartera y factura (0 en ropa y tiempo aire, que no tienen factura). */

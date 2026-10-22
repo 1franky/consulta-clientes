@@ -11,6 +11,7 @@ import com.coppel.validador.validacion.EstadoCuentaEsperado.Renglon;
 import com.coppel.validador.validacion.EstadoCuentaEsperado.Totales;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -101,7 +102,7 @@ public final class CalculadoraEstadoCuenta {
                 alertas.add("Cuenta " + c.articulo() + " con convenio de devolución: no se considera en el estado de cuenta");
                 continue;
             }
-            Renglon r = renglon(c, siguienteCorte);
+            Renglon r = renglon(c, siguienteCorte, saldaConDelSiguienteCorte(exp, siguienteCorte));
             if (r.ustedDebe() > 0) {
                 renglones.add(r);
             }
@@ -487,14 +488,24 @@ public final class CalculadoraEstadoCuenta {
         return articulo.length() > largo ? articulo.substring(0, largo) : articulo;
     }
 
-    private Renglon renglon(Cuenta c, LocalDate siguienteCorte) {
+    /**
+     * Los listados de Deuda Bancoppel y reestructura traen SaldaCon a la fecha de catFechas y SaldaCon20SigMes al 20
+     * (24 en diciembre) del mes siguiente. Si los datos son del mes del corte, SaldaCon20SigMes es el del siguiente
+     * corte; si no, el más cercano es SaldaCon.
+     */
+    static boolean saldaConDelSiguienteCorte(ExpedienteCliente exp, LocalDate siguienteCorte) {
+        return exp.fechaDatos() != null
+                && YearMonth.from(exp.fechaDatos().plusMonths(1)).equals(YearMonth.from(siguienteCorte));
+    }
+
+    private Renglon renglon(Cuenta c, LocalDate siguienteCorte, boolean saldaCon20) {
         // [6] USTED DEBE = SALDO A LA FECHA + INTERÉS ADICIONAL
         long debe = c.saldoFecha() + c.interesAdicional();
         long interesMes = c.interesAdicionalMes();
         long debia = Math.max(0, c.saldoFecha() + c.interesAdicionalMesAnterior() + c.abonosMes() - c.comprasMes());
 
         // [7] PÁGUELO CON SOLO = USTED DEBE - bonificación
-        Bonificacion bonificacion = bonificacion(c, debe, siguienteCorte);
+        Bonificacion bonificacion = bonificacion(c, debe, siguienteCorte, saldaCon20);
         long paguelo = debe - bonificacion.importe();
 
         // [9] ATRASADO = VENCIDO (en las muestras incluye el interés adicional, tope USTED DEBE)
@@ -517,7 +528,7 @@ public final class CalculadoraEstadoCuenta {
                 interesMes, debe, paguelo, c.abonoMensual(), atrasado, pase, ultimoAbono, bonificacion);
     }
 
-    private Bonificacion bonificacion(Cuenta c, long debe, LocalDate siguienteCorte) {
+    private Bonificacion bonificacion(Cuenta c, long debe, LocalDate siguienteCorte, boolean saldaCon20) {
         if (c.cuentaPerdida()) {
             return new Bonificacion(0, 0, c.plazo(), 0, 0, "Cuenta perdida: sin bonificación");
         }
@@ -535,28 +546,30 @@ public final class CalculadoraEstadoCuenta {
         // fun_calculabonificacion: ropa que se quedó sin saldo hace 30 días o menos bonifica el interés completo
         if (c.tipo() == TipoCartera.ROPA && c.fechaSinSaldo() != null
                 && ChronoUnit.DAYS.between(c.fechaSinSaldo(), siguienteCorte) <= 30) {
-            long importe = Math.min(c.interesSobreCompra(), c.saldoFecha());
+            long importe = topeSaldo(c.interesSobreCompra(), c);
             return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), 1, importe,
                     "Ropa sin saldo el " + Formato.fechaCorta(c.fechaSinSaldo())
-                            + " (30 días o menos): se bonifica el interés sobre compra completo");
+                            + " (30 días o menos): se bonifica el interés sobre compra completo"
+                            + notaTope(c.interesSobreCompra(), c));
         }
         String clave = c.tipo().claveCatalogo();
+        long saldaCon = saldaCon20 ? c.saldaCon20SiguienteMes() : c.saldaCon();
+        String columna = saldaCon20 ? "SaldaCon20SigMes" : "SaldaCon (a la fecha de los datos)";
         if (clave == null || c.fechaCompra() == null) {
-            long importe = Math.max(0, debe - c.saldaCon());
+            long importe = Math.max(0, debe - saldaCon);
             return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), 0, importe,
-                    "Sin catálogo para " + c.tipo().nombre() + ": se toma el Salda Con del listado. "
-                            + "Verificar el factor con la calculadora de Calidad");
+                    "Sin catálogo para " + c.tipo().nombre() + ": se toma " + columna + " del listado");
         }
         OptionalDouble factor = catalogo.factor(clave, c.plazo(), dias, c.fechaCompra());
         if (factor.isEmpty()) {
-            long importe = Math.max(0, debe - c.saldaCon());
+            long importe = Math.max(0, debe - saldaCon);
             return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), 0, importe,
                     "Plazo " + c.plazo() + " no está en el catálogo de " + c.tipo().nombre()
-                            + ": se toma el Salda Con del listado");
+                            + ": se toma " + columna + " del listado");
         }
-        // fnGeSaldaCon: la bonificación no puede pasar del saldo a la fecha
-        long importe = Math.min(Math.round(c.interesSobreCompra() * factor.getAsDouble()), c.saldoFecha());
-        return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), factor.getAsDouble(), importe, "");
+        long bruto = Math.round(c.interesSobreCompra() * factor.getAsDouble());
+        return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), factor.getAsDouble(), topeSaldo(bruto, c),
+                notaTope(bruto, c).replaceFirst("^\\. ", ""));
     }
 
     /**
@@ -618,10 +631,20 @@ public final class CalculadoraEstadoCuenta {
         }
         double bruto = c.interesSobreCompra() * factor.getAsDouble();
         long importe = trunca ? (long) bruto : Math.round(bruto);
-        // fnGeSaldaCon: la bonificación no puede pasar del saldo a la fecha
-        importe = Math.min(importe, c.saldoFecha());
-        return new Bonificacion(c.interesSobreCompra(), diasTabla, plazo, factor.getAsDouble(), importe,
-                (nota + ajuste).replaceFirst("^, ", ""));
+        return new Bonificacion(c.interesSobreCompra(), diasTabla, plazo, factor.getAsDouble(), topeSaldo(importe, c),
+                (nota + ajuste).replaceFirst("^, ", "") + notaTope(importe, c));
+    }
+
+    /**
+     * fnGeSaldaCon: si la bonificación pasa del saldo a la fecha no se aplica (Salda Con = saldo + interés adicional).
+     */
+    static long topeSaldo(long bonificacion, Cuenta c) {
+        return bonificacion > c.saldoFecha() ? 0 : bonificacion;
+    }
+
+    private static String notaTope(long bonificacion, Cuenta c) {
+        return bonificacion > c.saldoFecha() ? ". La bonificación ($" + Formato.importeConCero(bonificacion)
+                + ") pasa del saldo ($" + Formato.importeConCero(c.saldoFecha()) + "): fnGeSaldaCon no la aplica" : "";
     }
 
     /** fun_validarplazo: plazos de muebles agrupados en 12, 18, 24, 30 y 36. */

@@ -114,6 +114,7 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
         List<TablaListado> listados = new ArrayList<>();
         List<String> avisos = new ArrayList<>();
         Map<String, String> forzadas = config.columnas();
+        LocalDate fechaDatos = fechaDatos().orElse(null);
 
         try (Connection con = DriverManager.getConnection(db.url(), db.usuario(), db.password())) {
             con.setAutoCommit(false);
@@ -188,7 +189,7 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 LOG.warning("[" + numeroCliente + "] " + aviso);
             }
             return new ExpedienteCliente(fechaCorte, cliente, cuentas, dinero, situaciones, marcas, listados, avisos,
-                    situacionesImpresas, abonosYMesesVencidos);
+                    situacionesImpresas, abonosYMesesVencidos, fechaDatos);
         } catch (SQLException e) {
             LOG.log(Level.SEVERE, "[" + db.nombre() + "] Error de conexión consultando el cliente " + numeroCliente
                     + " (SQLState " + e.getSQLState() + ", código " + e.getErrorCode() + ")", e);
