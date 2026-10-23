@@ -31,7 +31,9 @@ Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no
 4. Pestaña **Estado de cuenta esperado**: cómo debería verse el impreso. Abajo vienen las notas del cálculo
    (asteriscos, aviso importante, citatorio, situación especial) y el cálculo de bonificaciones.
    Los recuadros rojos son alertas (por ejemplo, una situación especial a la que no se le genera estado de cuenta).
-5. Pestaña **Listados**: lo que devolvió cada procedimiento, sin interpretar, y los avisos de la consulta.
+5. Pestaña **Listados**: cada listado (directorio, crédito, muebles, ropa, dinero electrónico, cartera informativa,
+   marcas de contacto) con el acomodo del impreso de VbnListadoCarteras, los avisos de la consulta y, en
+   **Datos crudos**, lo que devolvió cada procedimiento sin interpretar.
 6. Botón **Modo oscuro / Modo claro** (arriba a la derecha): cambia los colores al momento. La elección se
    recuerda por usuario de Windows.
 
@@ -64,7 +66,8 @@ com.coppel.validador
     ├── VentanaPrincipal
     ├── PanelMuestra                 ← visor del PDF escaneado (PDFBox)
     ├── PanelEstadoCuenta            ← estado de cuenta esperado
-    ├── PanelListados                ← resultado crudo de los procedimientos
+    ├── PanelListados                ← listados como los impresos + datos crudos
+    ├── HojasListados                ← arma cada listado con las etiquetas del impreso
     └── Tema                         ← modo claro / oscuro (FlatLaf)
 ```
 
@@ -163,7 +166,7 @@ dejan el resultado en una tabla `tmp*` que se lee con un `SELECT` en la misma se
 |---|---|
 | `sp.credito` | `EXEC dbo.spcQCCredito :cliente; SELECT * FROM dbo.tmpQCCredito01` |
 | `sp.dineroElectronico` | `EXEC dbo.spcQCDineroElectronico :cliente; IF OBJECT_ID('dbo.tmpDineroElectronico3') IS NOT NULL SELECT * FROM dbo.tmpDineroElectronico3` |
-| `sp.informativa` | `EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp` |
+| `sp.informativa` | `EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp; IF OBJECT_ID('dbo.tmp_CarteraInformativa') IS NOT NULL SELECT * FROM dbo.tmp_CarteraInformativa; SELECT * FROM dbo.tmp_CteReferencia; SELECT * FROM dbo.tmp_CteTelefono` |
 | `sp.marcasContacto` | `EXEC dbo.proc_clientenocontactado :cliente; SELECT * FROM dbo.tmp_clientenocontactado` |
 
 **Permisos:** los procedimientos hacen `DROP TABLE` / `SELECT INTO` sobre tablas `tmp*` de `dbo`, así que un usuario

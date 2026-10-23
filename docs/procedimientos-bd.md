@@ -19,7 +19,7 @@ corte. El acceso está en `service/SqlServerEstadoCuentaService.java`.
 | `reestructuras` | `spcQCReestructuras` | `@NumCte INT` | Filas |
 | `cpMuebles` / `cpRopa` / `cpPrestamos` | `spcQCCPMuebles` / `spcQCCPRopa` / `spcQCCPPrestamos` | `@NumCte INT` | Filas |
 | `dineroElectronico` | `spcQCDineroElectronico` | `@NumCte INT` | **Sin filas**: tabla `tmpDineroElectronico3` |
-| `informativa` | `proc_carterainformativa` | `@num_cliente INT` | `SELECT 1`; situaciones en `tmp_CteSituacionEsp` |
+| `informativa` | `proc_carterainformativa` | `@num_cliente INT` | `SELECT 1`; situaciones en `tmp_CteSituacionEsp`; localizar, referencias y teléfonos en `tmp_CarteraInformativa`, `tmp_CteReferencia` y `tmp_CteTelefono` |
 | `marcasContacto` | `proc_clientenocontactado` | `@num_cliente INT` | **Sin filas**: tabla `tmp_clientenocontactado` |
 | `contactoAlCorte` | `SELECT` a carteras vigentes y saldadas, `mae_clientessituaciones`, `maeTelefonos`, `mae_correos`, `maeDirectorio` | `:cliente`, `:corte` | Una fila: `ultimoMovimiento`, `movimientoPosterior`, `situacionAbogado`, `telefonoVerificado`, `correoConfirmado`, `conflicto` |
 | `inicialCiudad` | `SELECT` a `maeDirectorio` + `CatCiudades` | `:cliente` | `InicialCiudad` (ACYN) |
@@ -35,7 +35,7 @@ Los que dejan el resultado en una tabla se configuran con un `SELECT` en la mism
 ```properties
 sp.credito=EXEC dbo.spcQCCredito :cliente; SELECT * FROM dbo.tmpQCCredito01
 sp.dineroElectronico=EXEC dbo.spcQCDineroElectronico :cliente; IF OBJECT_ID('dbo.tmpDineroElectronico3') IS NOT NULL SELECT * FROM dbo.tmpDineroElectronico3
-sp.informativa=EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp
+sp.informativa=EXEC dbo.proc_carterainformativa :cliente; SELECT * FROM dbo.tmp_CteSituacionEsp; IF OBJECT_ID('dbo.tmp_CarteraInformativa') IS NOT NULL SELECT * FROM dbo.tmp_CarteraInformativa; SELECT * FROM dbo.tmp_CteReferencia; SELECT * FROM dbo.tmp_CteTelefono
 sp.marcasContacto=EXEC dbo.proc_clientenocontactado :cliente; SELECT * FROM dbo.tmp_clientenocontactado
 ```
 
