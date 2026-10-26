@@ -14,6 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -27,23 +28,30 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.prefs.Preferences;
 
-/** Visor de la muestra escaneada (PDF o imagen) para compararla contra lo esperado. */
+/**
+ * Visor de la muestra escaneada (PDF o imagen) para compararla contra lo esperado. Se abre un archivo o una
+ * carpeta completa: con la carpeta aparecen sus miniaturas a la izquierda para pasar de una muestra a otra.
+ */
 public class PanelMuestra extends JPanel {
 
     private static final Logger LOG = Logger.getLogger(PanelMuestra.class.getName());
 
     private static final float DPI_BASE = 72f;
     private static final float[] ZOOMS = {0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 2.5f, 3f};
+    private static final String PREF_CARPETA = "muestra.carpeta";
 
-    private final JLabel lblImagen = new JLabel("Abre la muestra escaneada (PDF o imagen) con \"Abrir muestra\"",
-            SwingConstants.CENTER);
+    private final JLabel lblImagen = new JLabel("<html><center>Abre la muestra escaneada (PDF o imagen) con \"Abrir muestra\""
+            + "<br>o una carpeta de muestras con \"Abrir carpeta\"</center></html>", SwingConstants.CENTER);
     private final JScrollPane scroll = new JScrollPane(lblImagen);
     private final JLabel lblPagina = new JLabel(" ");
     private final JButton btnAnterior = new JButton("◀");
     private final JButton btnSiguiente = new JButton("▶");
     private final JButton btnMenos = new JButton("−");
     private final JButton btnMas = new JButton("+");
+    private final JToggleButton btnMiniaturas = new JToggleButton("Miniaturas", true);
+    private final CarpetaMuestras carpeta = new CarpetaMuestras(this::abrir);
 
     private PDDocument documento;
     private PDFRenderer renderer;
@@ -52,11 +60,19 @@ public class PanelMuestra extends JPanel {
     private int pagina;
     private int zoom = 4; // 1.5x
     private boolean renderizando;
+    private boolean pendiente; // se pidió otra página (u otro archivo) mientras se renderizaba
 
     public PanelMuestra() {
         super(new BorderLayout());
         JButton btnAbrir = new JButton("Abrir muestra...");
         btnAbrir.addActionListener(e -> elegirArchivo());
+        JButton btnCarpeta = new JButton("Abrir carpeta...");
+        btnCarpeta.addActionListener(e -> elegirCarpeta());
+        btnMiniaturas.setVisible(false);
+        btnMiniaturas.addActionListener(e -> {
+            carpeta.setVisible(btnMiniaturas.isSelected());
+            revalidate();
+        });
         btnAnterior.addActionListener(e -> irA(pagina - 1));
         btnSiguiente.addActionListener(e -> irA(pagina + 1));
         btnMenos.addActionListener(e -> cambiarZoom(-1));
@@ -64,6 +80,8 @@ public class PanelMuestra extends JPanel {
 
         JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         barra.add(btnAbrir);
+        barra.add(btnCarpeta);
+        barra.add(btnMiniaturas);
         barra.add(btnAnterior);
         barra.add(lblPagina);
         barra.add(btnSiguiente);
@@ -76,6 +94,8 @@ public class PanelMuestra extends JPanel {
         setBorder(BorderFactory.createTitledBorder("Muestra impresa"));
         add(barra, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
+        carpeta.setVisible(false);
+        add(carpeta, BorderLayout.WEST);
         actualizarControles();
     }
 
@@ -85,14 +105,52 @@ public class PanelMuestra extends JPanel {
     }
 
     private void elegirArchivo() {
-        JFileChooser chooser = new JFileChooser(archivo != null ? archivo.getParentFile() : null);
+        JFileChooser chooser = new JFileChooser(archivo != null ? archivo.getParentFile() : ultimaCarpeta());
         chooser.setFileFilter(new FileNameExtensionFilter("Muestras (PDF, PNG, JPG)", "pdf", "png", "jpg", "jpeg"));
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             abrir(chooser.getSelectedFile());
         }
     }
 
+    private void elegirCarpeta() {
+        JFileChooser chooser = new JFileChooser(ultimaCarpeta());
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        chooser.setDialogTitle("Carpeta de muestras");
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            abrirCarpeta(chooser.getSelectedFile());
+        }
+    }
+
+    /** Muestra las miniaturas de la carpeta (y sus subcarpetas) y abre la primera muestra. */
+    public void abrirCarpeta(File dir) {
+        int total;
+        try {
+            total = carpeta.cargar(dir);
+        } catch (IOException e) {
+            LOG.log(Level.WARNING, "No se pudo leer la carpeta " + dir, e);
+            JOptionPane.showMessageDialog(this, "No se pudo leer " + dir + ":\n" + e.getMessage(),
+                    "Muestra", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        LOG.info("Carpeta de muestras: " + dir.getAbsolutePath() + " (" + total + ")");
+        guardarCarpeta(dir);
+        btnMiniaturas.setVisible(true);
+        btnMiniaturas.setSelected(true);
+        carpeta.setVisible(true);
+        revalidate();
+        if (total == 0) {
+            JOptionPane.showMessageDialog(this, "La carpeta no tiene PDF ni imágenes.", "Muestra",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            carpeta.seleccionar(null);
+            carpeta.seleccionarPrimera();
+        }
+    }
+
     public void abrir(File nuevo) {
+        if (nuevo.equals(archivo)) {
+            return;
+        }
         cerrar();
         try {
             if (nuevo.getName().toLowerCase().endsWith(".pdf")) {
@@ -106,6 +164,7 @@ public class PanelMuestra extends JPanel {
             }
             archivo = nuevo;
             LOG.info("Muestra abierta: " + nuevo.getAbsolutePath());
+            carpeta.seleccionar(nuevo);
             irA(0);
         } catch (IOException e) {
             LOG.log(Level.WARNING, "No se pudo abrir la muestra " + nuevo, e);
@@ -116,12 +175,8 @@ public class PanelMuestra extends JPanel {
     }
 
     private void cerrar() {
-        if (documento != null) {
-            try {
-                documento.close();
-            } catch (IOException e) {
-                LOG.log(Level.FINE, "Error cerrando el PDF", e);
-            }
+        if (!renderizando) { // si se está renderizando, lo cierra el SwingWorker al terminar
+            cerrarDocumento(documento);
         }
         documento = null;
         renderer = null;
@@ -130,6 +185,25 @@ public class PanelMuestra extends JPanel {
         pagina = 0;
         lblImagen.setIcon(null);
         actualizarControles();
+    }
+
+    private static void cerrarDocumento(PDDocument doc) {
+        if (doc != null) {
+            try {
+                doc.close();
+            } catch (IOException e) {
+                LOG.log(Level.FINE, "Error cerrando el PDF", e);
+            }
+        }
+    }
+
+    private static File ultimaCarpeta() {
+        String ruta = Preferences.userNodeForPackage(PanelMuestra.class).get(PREF_CARPETA, null);
+        return ruta != null && new File(ruta).isDirectory() ? new File(ruta) : null;
+    }
+
+    private static void guardarCarpeta(File dir) {
+        Preferences.userNodeForPackage(PanelMuestra.class).put(PREF_CARPETA, dir.getAbsolutePath());
     }
 
     private int totalPaginas() {
@@ -145,7 +219,11 @@ public class PanelMuestra extends JPanel {
     }
 
     private void irA(int nueva) {
-        if (totalPaginas() == 0 || nueva < 0 || nueva >= totalPaginas() || renderizando) {
+        if (renderizando) {
+            pendiente = true;
+            return;
+        }
+        if (totalPaginas() == 0 || nueva < 0 || nueva >= totalPaginas()) {
             return;
         }
         pagina = nueva;
@@ -156,6 +234,7 @@ public class PanelMuestra extends JPanel {
         }
         renderizando = true;
         actualizarControles();
+        PDDocument doc = documento;
         PDFRenderer r = renderer;
         int p = pagina;
         new SwingWorker<BufferedImage, Void>() {
@@ -167,6 +246,16 @@ public class PanelMuestra extends JPanel {
             @Override
             protected void done() {
                 renderizando = false;
+                if (doc != documento || pendiente) {
+                    // mientras se renderizaba se cambió de archivo, de página o de zoom
+                    if (doc != documento) {
+                        cerrarDocumento(doc);
+                    }
+                    pendiente = false;
+                    irA(pagina);
+                    actualizarControles();
+                    return;
+                }
                 try {
                     mostrar(get());
                 } catch (InterruptedException | ExecutionException e) {

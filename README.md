@@ -24,6 +24,9 @@ Se distribuye como un `.exe` para Windows **con Java embebido**: quien la usa no
 
 1. Abrir `ValidadorEdoCta.exe`.
 2. **Abrir muestra...** y elegir el PDF escaneado (o una imagen). Se ve a la izquierda; con ◀ ▶ se cambia de página y con − + el zoom.
+   Con **Abrir carpeta...** se elige una carpeta de muestras (p. ej. `muestras/`, con sus subcarpetas por cliente): aparecen las
+   miniaturas de todos sus PDF e imágenes y basta un clic (o ↑ ↓) para cambiar de muestra; **Miniaturas** oculta o muestra la lista.
+   La última carpeta se recuerda para la siguiente vez.
 3. Escribir el **número de cliente** y pulsar **Consultar**. La **fecha de corte** no se captura: se muestra junto al
    botón y es el último día 20 hasta `catFechas` (en modo demo, 20/09/2026). Si `catFechas` es posterior al corte,
    aparece en rojo "Datos al ...": los listados incluyen movimientos posteriores al corte y pueden no coincidir con
@@ -65,6 +68,7 @@ com.coppel.validador
 └── ui/                              ← solo Swing: no hace SQL ni cálculos
     ├── VentanaPrincipal
     ├── PanelMuestra                 ← visor del PDF escaneado (PDFBox)
+    ├── CarpetaMuestras              ← miniaturas de una carpeta de muestras
     ├── PanelEstadoCuenta            ← estado de cuenta esperado
     ├── PanelListados                ← listados como los impresos + datos crudos
     ├── HojasListados                ← arma cada listado con las etiquetas del impreso
