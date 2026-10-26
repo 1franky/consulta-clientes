@@ -93,7 +93,7 @@ Regla: `ui` solo habla con `service` (datos) y `validacion` (reglas). `validacio
 | [16] | Asteriscos: `*` al corriente, `**` nuevo del mes, `***` A con atraso del 50% al 75% de dos abonos |
 | [18] | Citatorio CIT # 1/2/3/4/7 según abonos vencidos y puntualidad (solo como nota: el formato 2026 no lo imprime) |
 | Aviso importante | Revisión visual contra la muestra (los textos 2026 no están en `catLeyendasCorreos`). En las notas queda, de referencia, el renglón de `catLeyendasCorreos` elegido como la emisión (puntualidad + abonos y meses vencidos, temporada, convenio, recoger/definir). La marca (`NTE NCE` juntas, 3MSC reemplaza) solo se imprime con atrasado |
-| [19] | Tienda (4) + factura (6) `*` artículos de todas las cuentas menos ropa |
+| [19] | Tienda (4) + factura (6) `*` artículos de todas las cuentas menos ropa; a su lado, el convenio vigente de mayor importe (`DDMM importe plazo subtipo`) |
 | [20] | IR$ IP$ IB$ IM$ IE$ IT$ (interés adicional por cartera) y R1$ M1$ E1$ (interés del primer mes) |
 | [21]–[25] | Domiciliada, leyendas, página, monedas de abono puntual, QR (revisión visual) |
 | Alertas | Situación especial L, M, X, F, P23, P71–P74; `NoEnviarEdoCta` sin vencido; convenio de devolución; más de 5 cuentas |

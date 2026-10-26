@@ -24,6 +24,8 @@ import java.time.LocalDate;
  * @param salarioCuentasPerdidas cuentas perdidas: SalMinZonaC; pesos = saldoMesAnterior × salario / 10000
  * @param importeUltimoMovimiento ImporteUltimoMov: con datos posteriores al corte reemplaza a AbonoDelMes, que el
  *                           cierre del día 20 deja en 0
+ * @param tipoConvenio       TipoDeConvenio y SubtipoDeConvenio: con fecha, importe y plazo arman la clave del convenio
+ *                           vigente que se imprime junto a las facturas
  */
 public record Cuenta(
         TipoCartera tipo,
@@ -64,9 +66,11 @@ public record Cuenta(
         long bonificacionOtorgada,
         long saldoMesAnterior,
         long salarioCuentasPerdidas,
-        long importeUltimoMovimiento) {
+        long importeUltimoMovimiento,
+        String tipoConvenio,
+        String subtipoConvenio) {
 
-    /** Sin el importe del último movimiento. */
+    /** Sin el importe del último movimiento ni el tipo de convenio. */
     public Cuenta(TipoCartera tipo, boolean cuentaPerdida, long numeroTienda, long numeroFactura, String articulo,
                   int numeroArticulos, LocalDate fechaCompra, int plazo, long interesSobreCompra, long abonoMensual,
                   long abonosMes, long comprasMes, long saldoFecha, long interesAdicionalMesAnterior,
@@ -82,7 +86,7 @@ public record Cuenta(
                 fechaUltimoMovimiento, fechaSinSaldo, convenioActivo, convenioDevolucion, domiciliada,
                 interesPrimerMes, importeVenta, enganche, tipoUltimoMovimiento, fechaConvenio, importeConvenio,
                 plazoConvenio, tipoProducto, minimoAPagar, enganchesMes, bonificacionOtorgada, saldoMesAnterior,
-                salarioCuentasPerdidas, 0);
+                salarioCuentasPerdidas, 0, "", "");
     }
 
     /** Sin los datos de venta y convenio (modo demo y pruebas). */

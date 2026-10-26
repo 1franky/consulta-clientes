@@ -340,6 +340,10 @@ class CalculadoraEstadoCuentaTest {
         LocalDate corte = LocalDate.of(2026, 10, 20);
         LocalDate datos = LocalDate.of(2026, 10, 24);
         Renglon r = renglonUnico(abonada(LocalDate.of(2026, 10, 20), "1", 2155), corte, datos);
+        EstadoCuentaEsperado esp = calculadora.calcular(expedienteUnico(abonada(LocalDate.of(2026, 10, 20), "1", 2155),
+                corte, datos));
+        assertTrue(esp.alertas().isEmpty(), "el abono reconstruido es una nota, no una alerta");
+        assertTrue(esp.notas().get(0).contains("$2,155"), esp.notas().toString());
         assertEquals(10749, r.ustedDebia());
         assertEquals(2155, r.menosAbonos());
         assertEquals(8594, r.ustedDebe());
@@ -359,7 +363,7 @@ class CalculadoraEstadoCuentaTest {
                 "ropa: venta sin enganche");
         Cuenta deuda = new Cuenta(TipoCartera.DEUDA_BANCOPPEL, false, 1, 1, "SOLEXTC1", 0, LocalDate.of(2024, 4, 24), 12,
                 0, 58, 0, 0, 647, 0, 0, 0, 647, 0, 0, 0, LocalDate.of(2024, 11, 13), null, false, false, false,
-                0, 0, 0, "J", null, 0, 0, 0, null, 0, 0, 0, 0, 114);
+                0, 0, 0, "J", null, 0, 0, 0, null, 0, 0, 0, 0, 114, "", "");
         assertEquals("13-Nov-24", renglonUnico(deuda, CORTE, CORTE).fechaUltimoAbono());
     }
 
@@ -368,14 +372,34 @@ class CalculadoraEstadoCuentaTest {
         LocalDate venta = LocalDate.of(2026, 2, 23);
         return new Cuenta(TipoCartera.MUEBLES, false, 1, 1, "CONSOLA", 1, venta, 12, 7753, 2153, 0, 0,
                 8594, 0, 0, 0, 0, 0, 0, 0, fechaMov, null, false, false, false,
-                0, 18079, 0, tipoMov, null, 0, 0, 0, null, 0, 0, 0, 0, importeMov);
+                0, 18079, 0, tipoMov, null, 0, 0, 0, null, 0, 0, 0, 0, importeMov, "", "");
     }
 
     private Renglon renglonUnico(Cuenta cuenta, LocalDate corte, LocalDate fechaDatos) {
+        return calculadora.calcular(expedienteUnico(cuenta, corte, fechaDatos)).renglones().get(0);
+    }
+
+    private ExpedienteCliente expedienteUnico(Cuenta cuenta, LocalDate corte, LocalDate fechaDatos) {
         ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, corte);
-        ExpedienteCliente uno = new ExpedienteCliente(corte, exp.cliente(), List.of(cuenta), exp.dineroElectronico(),
+        return new ExpedienteCliente(corte, exp.cliente(), List.of(cuenta), exp.dineroElectronico(),
                 List.of(), List.of(), List.of(), List.of(), null, Map.of(), fechaDatos, null);
-        return calculadora.calcular(uno).renglones().get(0);
+    }
+
+    @Test
+    void elConvenioVigenteSeImprimeJuntoALasFacturas() {
+        // Muestra: convenio del 09-Oct de $335 a 2 semanas, subtipo 2 → "0910 00335 2 2" (vigente del 9 al 23)
+        LocalDate corte = LocalDate.of(2026, 10, 20);
+        assertEquals("0910 00335 2 2", calculadora.calcular(expedienteUnico(conConvenio(LocalDate.of(2026, 10, 9), 2),
+                corte, corte)).datosConvenio());
+        // A 1 semana vence el 16: ya no está vigente al corte
+        assertEquals("", calculadora.calcular(expedienteUnico(conConvenio(LocalDate.of(2026, 10, 9), 1),
+                corte, corte)).datosConvenio());
+    }
+
+    private static Cuenta conConvenio(LocalDate fecha, int plazoSemanas) {
+        return new Cuenta(TipoCartera.ROPA, false, 910, 0, "ROPA", 0, LocalDate.of(2026, 4, 9), 12, 0, 107, 0, 0,
+                1290, 0, 0, 0, 642, 0, 0, 0, fecha, null, true, false, false,
+                0, 0, 0, "", fecha, 335, plazoSemanas, 0, null, 0, 0, 0, 0, 0, "2", "2");
     }
 
     @Test

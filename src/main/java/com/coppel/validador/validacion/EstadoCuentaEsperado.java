@@ -18,7 +18,9 @@ import java.util.List;
  * @param marcaContacto      3MSC, NTE o NCE arriba de "AVISO IMPORTANTE", o vacío
  * @param avisoImportante    leyenda bajo "AVISO IMPORTANTE:"; vacía si no se pudo determinar
  * @param situacionEspecial  situación y causa que se imprimen junto al centro (I35), o vacío
+ * @param datosConvenio      convenio vigente junto a las facturas: DDMM importe plazo subtipo ("0910 00335 2 2"), o vacío
  * @param alertas            situaciones que impiden o condicionan el estado de cuenta
+ * @param notas              aclaraciones del cálculo que no impiden nada (abonos reconstruidos, etc.)
  */
 public record EstadoCuentaEsperado(
         String soloIncluyeAbonosHasta,
@@ -29,6 +31,7 @@ public record EstadoCuentaEsperado(
         List<Renglon> renglones,
         Totales totales,
         String facturas,
+        String datosConvenio,
         String interesesCartera,
         String citatorio,
         String explicacionCitatorio,
@@ -39,7 +42,8 @@ public record EstadoCuentaEsperado(
         long saldoDineroElectronico,
         int monedasAbonoPuntual,
         boolean domiciliada,
-        List<String> alertas) {
+        List<String> alertas,
+        List<String> notas) {
 
     public static final int MAX_RENGLONES = 5;
 

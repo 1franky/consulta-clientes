@@ -103,9 +103,8 @@ public class PanelEstadoCuenta extends JPanel {
         for (String renglon : Formato.domicilio(c)) {
             sb.append("<br>").append(fijo(renglon));
         }
-        if (!c.telefono().isBlank() && !c.telefono().equals("0")) {
-            sb.append("<br>TEL: ").append(e(c.telefono()));
-        }
+        // El teléfono del cliente no se imprime: el impresor solo pinta nombre, direccion1 y direccion2, y la única
+        // muestra con teléfono de casa no lo trae
         // Tres renglones de claves, como en el impreso. El hueco de en medio es el folio (FolioEstadoDeCuenta)
         sb.append("<br><br><table cellspacing='0' cellpadding='0'><tr>")
                 .append(clave(c.numeroCliente() + c.digito())).append(clave(Formato.cadenaCobranza(c)))
@@ -177,7 +176,9 @@ public class PanelEstadoCuenta extends JPanel {
         // Pie
         sb.append("<br><table width='100%' cellspacing='4' cellpadding='4'><tr>")
                 .append("<td width='50%' bgcolor='").append(p.gris()).append("'><font face='monospaced'>")
-                .append(e(esp.facturas())).append("</font></td>")
+                .append(e(esp.facturas())).append("</font>")
+                .append(esp.datosConvenio().isEmpty() ? "" : "&nbsp;&nbsp;&nbsp;&nbsp;" + e(esp.datosConvenio()))
+                .append("</td>")
                 .append("<td width='50%' bgcolor='").append(p.gris()).append("'><font face='monospaced'>")
                 .append(e(esp.interesesCartera()).replace(" ", "&nbsp;")).append("</font></td></tr><tr>")
                 .append("<td valign='top' bgcolor='").append(p.gris()).append("'>");
@@ -224,7 +225,7 @@ public class PanelEstadoCuenta extends JPanel {
         // Detalle de bonificaciones
         sb.append("<br><b>Cálculo de bonificaciones [7]</b><table cellspacing='0' cellpadding='2'>")
                 .append("<tr><th align='left'>Cuenta</th><th>Base</th><th>Plazo</th><th>Días</th><th>Factor</th>")
-                .append("<th>Bonificación</th><th align='left'>Nota</th></tr>");
+                .append("<th>Bonificación</th><th align='left'>&nbsp;&nbsp;&nbsp;Fórmula</th><th align='left'>Nota</th></tr>");
         for (Renglon r : esp.renglones()) {
             Bonificacion b = r.bonificacion();
             sb.append("<tr><td>").append(e(r.articulo())).append("</td>")
@@ -233,9 +234,18 @@ public class PanelEstadoCuenta extends JPanel {
                     .append("<td align='right'>").append(b.dias()).append("</td>")
                     .append("<td align='right'>").append(String.format(Locale.US, "%.4f", b.factor())).append("</td>")
                     .append("<td align='right'>").append(Formato.importeConCero(b.importe())).append("</td>")
+                    .append("<td>&nbsp;&nbsp;&nbsp;").append(e(formula(b))).append("</td>")
                     .append("<td>").append(e(b.nota())).append("</td></tr>");
         }
-        sb.append("</table></body></html>");
+        sb.append("</table>");
+        if (!esp.notas().isEmpty()) {
+            sb.append("<font color='").append(p.tenue()).append("'><ul>");
+            for (String nota : esp.notas()) {
+                sb.append("<li>").append(e(nota)).append("</li>");
+            }
+            sb.append("</ul></font>");
+        }
+        sb.append("</body></html>");
         return sb.toString();
     }
 
@@ -272,5 +282,14 @@ public class PanelEstadoCuenta extends JPanel {
             return "";
         }
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&#39;");
+    }
+
+    /** Base × factor con el resultado exacto (préstamos trunca, ropa y muebles redondean; ver la columna Bonificación). */
+    static String formula(Bonificacion b) {
+        if (b.base() == 0 && b.factor() == 0) {
+            return "";
+        }
+        return Formato.importeConCero(b.base()) + " × " + String.format(Locale.US, "%.4f", b.factor()) + " = "
+                + String.format(Locale.US, "%,.2f", b.base() * b.factor());
     }
 }

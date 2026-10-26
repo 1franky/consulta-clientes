@@ -107,6 +107,7 @@ public final class CalculadoraEstadoCuenta {
         LocalDate siguienteCorte = corte.plusMonths(1);
         Cliente cliente = exp.cliente();
         List<String> alertas = new ArrayList<>();
+        List<String> notas = new ArrayList<>();
         boolean datosPosteriores = exp.fechaDatos() != null && exp.fechaDatos().isAfter(corte);
 
         List<Renglon> renglones = new ArrayList<>();
@@ -125,7 +126,7 @@ public final class CalculadoraEstadoCuenta {
                 long abonosMes = c.abonosMes();
                 if (datosPosteriores && !c.cuentaPerdida() && abonosMes == 0 && abonoDelPeriodo(c, corte)) {
                     abonosMes = c.importeUltimoMovimiento();
-                    alertas.add("Cuenta " + c.articulo().strip() + ": los datos son posteriores al corte y AbonoDelMes ya "
+                    notas.add("Cuenta " + c.articulo().strip() + ": los datos son posteriores al corte y AbonoDelMes ya "
                             + "está en 0; se toma el último abono ($" + Formato.importeConCero(abonosMes) + " del "
                             + Formato.fechaCorta(c.fechaUltimoMovimiento()) + "). Si hubo más abonos en el mes, el "
                             + "impreso trae la suma");
@@ -299,6 +300,7 @@ public final class CalculadoraEstadoCuenta {
                 renglones,
                 totales,
                 facturas,
+                datosConvenio(renglones, corte),
                 interesesCartera,
                 citatorio,
                 explicacionCit,
@@ -309,7 +311,31 @@ public final class CalculadoraEstadoCuenta {
                 saldoDe,
                 monedas,
                 domiciliada,
-                alertas);
+                alertas,
+                notas);
+    }
+
+    /**
+     * SpCreaSaldos* / SpCreaDirectorioGeneral: de las cuentas con convenio activo al corte (tipo y subtipo capturados,
+     * corte entre la fecha del convenio y la fecha + plazo en semanas) se imprime el de mayor importe como
+     * DDMM + importe a 5 dígitos + plazo + subtipo.
+     */
+    static String datosConvenio(List<Renglon> renglones, LocalDate corte) {
+        return renglones.stream()
+                .map(Renglon::cuenta)
+                .filter(c -> !c.cuentaPerdida() && c.fechaConvenio() != null
+                        && !texto(c.tipoConvenio()).isEmpty() && !texto(c.subtipoConvenio()).isEmpty()
+                        && !corte.isBefore(c.fechaConvenio())
+                        && !corte.isAfter(c.fechaConvenio().plusDays(7L * c.plazoConvenio())))
+                .max(Comparator.comparingLong(Cuenta::importeConvenio))
+                .map(c -> String.format("%02d%02d %05d %s %s", c.fechaConvenio().getDayOfMonth(),
+                        c.fechaConvenio().getMonthValue(), c.importeConvenio() % 100000,
+                        String.valueOf(c.plazoConvenio()).substring(0, 1), texto(c.subtipoConvenio()).substring(0, 1)))
+                .orElse("");
+    }
+
+    private static String texto(String s) {
+        return s == null ? "" : s.strip();
     }
 
     /**
