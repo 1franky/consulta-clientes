@@ -324,6 +324,61 @@ class CalculadoraEstadoCuentaTest {
     }
 
     @Test
+    void laBonificacionDePrestamosSeTrunca() {
+        // Muestra: interés 19,818 × 41.38% = 8,200.69; la emisión bonifica 8,200 (páguelo 45,009, no 45,008)
+        Cuenta prestamo = new Cuenta(TipoCartera.PRESTAMOS, false, 1, 1, "PRESTAMO", 0, LocalDate.of(2026, 7, 3), 12,
+                19818, 5322, 0, 0, 53209, 0, 0, 0, 0, 0, 0, 0, LocalDate.of(2026, 9, 2), null, false, false, false);
+        EstadoCuentaEsperado.Bonificacion b = bonificacion(calculadora, prestamo);
+        assertEquals(109, b.dias());
+        assertEquals((long) (19818 * b.factor()), b.importe(), "factor " + b.factor());
+    }
+
+    @Test
+    void conDatosPosterioresAlCorteLosAbonosSonElUltimoAbonoDelPeriodo() {
+        // Muestra (corte 20-Oct-2026, datos del 24-Oct): saldo 8,594, AbonoDelMes ya en 0 por el cierre; imprime
+        // debía 10,749 y abonos 2,155, el último abono (20-Oct)
+        LocalDate corte = LocalDate.of(2026, 10, 20);
+        LocalDate datos = LocalDate.of(2026, 10, 24);
+        Renglon r = renglonUnico(abonada(LocalDate.of(2026, 10, 20), "1", 2155), corte, datos);
+        assertEquals(10749, r.ustedDebia());
+        assertEquals(2155, r.menosAbonos());
+        assertEquals(8594, r.ustedDebe());
+
+        // Abono anterior al periodo (06-Sep): no hubo abonos en el mes
+        assertEquals(0, renglonUnico(abonada(LocalDate.of(2026, 9, 6), "1", 240), corte, datos).menosAbonos());
+        // Datos del día del corte: AbonoDelMes es el de la emisión
+        assertEquals(0, renglonUnico(abonada(LocalDate.of(2026, 10, 20), "1", 2155), corte, corte).menosAbonos());
+    }
+
+    @Test
+    void laFechaDeUltimoAbonoIncluyeEngancheDeRopaYAbonoJDeDeudaBancoppel() {
+        LocalDate dia = LocalDate.of(2025, 4, 24);
+        assertEquals(dia, FuncionesEmision.fechaUltimoAbono(dia, "3", Set.of("5", "3"), dia, 0),
+                "ropa: venta con enganche");
+        assertEquals(null, FuncionesEmision.fechaUltimoAbono(dia, "4", Set.of("5", "3"), dia, 0),
+                "ropa: venta sin enganche");
+        Cuenta deuda = new Cuenta(TipoCartera.DEUDA_BANCOPPEL, false, 1, 1, "SOLEXTC1", 0, LocalDate.of(2024, 4, 24), 12,
+                0, 58, 0, 0, 647, 0, 0, 0, 647, 0, 0, 0, LocalDate.of(2024, 11, 13), null, false, false, false,
+                0, 0, 0, "J", null, 0, 0, 0, null, 0, 0, 0, 0, 114);
+        assertEquals("13-Nov-24", renglonUnico(deuda, CORTE, CORTE).fechaUltimoAbono());
+    }
+
+    /** Muebles con saldo 8,594 cuyo último movimiento es el indicado; AbonoDelMes en 0. */
+    private static Cuenta abonada(LocalDate fechaMov, String tipoMov, long importeMov) {
+        LocalDate venta = LocalDate.of(2026, 2, 23);
+        return new Cuenta(TipoCartera.MUEBLES, false, 1, 1, "CONSOLA", 1, venta, 12, 7753, 2153, 0, 0,
+                8594, 0, 0, 0, 0, 0, 0, 0, fechaMov, null, false, false, false,
+                0, 18079, 0, tipoMov, null, 0, 0, 0, null, 0, 0, 0, 0, importeMov);
+    }
+
+    private Renglon renglonUnico(Cuenta cuenta, LocalDate corte, LocalDate fechaDatos) {
+        ExpedienteCliente exp = demo.consultar(DemoEstadoCuentaService.CLIENTE_AL_CORRIENTE, corte);
+        ExpedienteCliente uno = new ExpedienteCliente(corte, exp.cliente(), List.of(cuenta), exp.dineroElectronico(),
+                List.of(), List.of(), List.of(), List.of(), null, Map.of(), fechaDatos, null);
+        return calculadora.calcular(uno).renglones().get(0);
+    }
+
+    @Test
     void saldoDeCuentaPerdidaEnPesosComoLasMuestras() {
         // Muestras: 11446 y 8241 diezmilésimos de salario × $39.00 → 4,463 y 3,213 (truncado)
         assertEquals(4463, CalculadoraEstadoCuenta.saldoCuentaPerdida(cuentaPerdida(11446)));

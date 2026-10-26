@@ -184,9 +184,15 @@ public class PanelEstadoCuenta extends JPanel {
         if (!esp.marcaContacto().isEmpty()) {
             sb.append(e(esp.marcaContacto())).append("<br>");
         }
-        sb.append("AVISO IMPORTANTE:<br>").append(esp.avisoImportante().isEmpty()
-                ? "<font color='" + p.tenue() + "'><i>(" + e(esp.explicacionAviso()) + ")</i></font>"
-                : e(esp.avisoImportante()));
+        // Los textos del aviso de las muestras 2026 no están en catLeyendasCorreos (la emisión los toma de otra fuente):
+        // se valida a ojo, como la leyenda de mercadotecnia. Para retomar el aviso calculado con el catálogo:
+        // sb.append("AVISO IMPORTANTE:<br>").append(esp.avisoImportante().isEmpty()
+        //         ? "<font color='" + p.tenue() + "'><i>(" + e(esp.explicacionAviso()) + ")</i></font>"
+        //         : e(esp.avisoImportante()));
+        sb.append("AVISO IMPORTANTE:<br>")
+                .append("<font color='").append(p.tenue()).append("'><i>Leyenda de cobranza: se valida contra la ")
+                .append("muestra impresa; debe corresponder al atraso del cliente (al corriente: cliente cumplido; ")
+                .append("con atraso: retraso, buró o área legal según los abonos vencidos).</i></font>");
         sb.append("</td><td valign='top' bgcolor='").append(p.gris()).append("'>")
                 .append("<font color='").append(p.tenue()).append("'><i>Leyenda de mercadotecnia: se valida contra ")
                 .append("la carpeta compartida ").append(e(CARPETA_MERCADOTECNIA))
@@ -197,7 +203,8 @@ public class PanelEstadoCuenta extends JPanel {
         sb.append("<br><b>Notas del cálculo</b><ul>")
                 .append("<li>Favor de pagar [15]: ").append(e(esp.explicacionFavorPagar())).append("</li>")
                 .append("<li>Asteriscos [16]: ").append(e(esp.explicacionAsteriscos())).append("</li>")
-                .append("<li>Aviso importante: ").append(e(esp.explicacionAviso())).append("</li>")
+                .append("<li>Aviso importante (catLeyendasCorreos, solo de referencia): ")
+                .append(e(esp.explicacionAviso())).append("</li>")
                 .append("<li>Invitaciones: si la emisión le asignó una invitación al cliente, el impresor la pinta ")
                 .append("en lugar de \"AVISO IMPORTANTE\" y de la marca (con atrasado, <i>leyinvitacionsdo1vdp1</i>; ")
                 .append("sin atrasado, <i>leyinvitacionsdo0vdp0</i>), y con invitación tipológica cambia la leyenda de ")

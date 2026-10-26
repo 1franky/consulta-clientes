@@ -360,7 +360,8 @@ public final class SqlServerEstadoCuentaService implements EstadoCuentaService {
                 Registro.aEntero(r.opcional("bonificacionOtorgada", "BonificacionOtorgada")),
                 listado.cuentaPerdida()
                         ? Registro.aEntero(r.opcional("saldoMesAnterior", "SaldoMesAnterior", "Saldo20MesAnterior")) : 0,
-                listado.cuentaPerdida() ? Registro.aEntero(r.opcional("salarioCuentasPerdidas", "SalMinZonaC")) : 0);
+                listado.cuentaPerdida() ? Registro.aEntero(r.opcional("salarioCuentasPerdidas", "SalMinZonaC")) : 0,
+                Registro.aEntero(r.opcional("importeUltimoMovimiento", "ImporteUltimoMov")));
     }
 
     /** tmpDineroElectronico3: saldo y "Corte N" de abonos puntuales. */

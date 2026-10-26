@@ -22,6 +22,8 @@ import java.time.LocalDate;
  * @param saldoMesAnterior   cuentas perdidas: saldo en diezmilésimos de salario mínimo (SaldoMesAnterior; en ropa
  *                           Saldo20MesAnterior)
  * @param salarioCuentasPerdidas cuentas perdidas: SalMinZonaC; pesos = saldoMesAnterior × salario / 10000
+ * @param importeUltimoMovimiento ImporteUltimoMov: con datos posteriores al corte reemplaza a AbonoDelMes, que el
+ *                           cierre del día 20 deja en 0
  */
 public record Cuenta(
         TipoCartera tipo,
@@ -61,7 +63,27 @@ public record Cuenta(
         long enganchesMes,
         long bonificacionOtorgada,
         long saldoMesAnterior,
-        long salarioCuentasPerdidas) {
+        long salarioCuentasPerdidas,
+        long importeUltimoMovimiento) {
+
+    /** Sin el importe del último movimiento. */
+    public Cuenta(TipoCartera tipo, boolean cuentaPerdida, long numeroTienda, long numeroFactura, String articulo,
+                  int numeroArticulos, LocalDate fechaCompra, int plazo, long interesSobreCompra, long abonoMensual,
+                  long abonosMes, long comprasMes, long saldoFecha, long interesAdicionalMesAnterior,
+                  long interesAdicional, long interesAdicionalMes, long vencido, long saldaCon,
+                  long saldaCon20SiguienteMes, long bonificacionMes, LocalDate fechaUltimoMovimiento,
+                  LocalDate fechaSinSaldo, boolean convenioActivo, boolean convenioDevolucion, boolean domiciliada,
+                  long interesPrimerMes, long importeVenta, long enganche, String tipoUltimoMovimiento,
+                  LocalDate fechaConvenio, long importeConvenio, int plazoConvenio, int tipoProducto, Long minimoAPagar,
+                  long enganchesMes, long bonificacionOtorgada, long saldoMesAnterior, long salarioCuentasPerdidas) {
+        this(tipo, cuentaPerdida, numeroTienda, numeroFactura, articulo, numeroArticulos, fechaCompra, plazo,
+                interesSobreCompra, abonoMensual, abonosMes, comprasMes, saldoFecha, interesAdicionalMesAnterior,
+                interesAdicional, interesAdicionalMes, vencido, saldaCon, saldaCon20SiguienteMes, bonificacionMes,
+                fechaUltimoMovimiento, fechaSinSaldo, convenioActivo, convenioDevolucion, domiciliada,
+                interesPrimerMes, importeVenta, enganche, tipoUltimoMovimiento, fechaConvenio, importeConvenio,
+                plazoConvenio, tipoProducto, minimoAPagar, enganchesMes, bonificacionOtorgada, saldoMesAnterior,
+                salarioCuentasPerdidas, 0);
+    }
 
     /** Sin los datos de venta y convenio (modo demo y pruebas). */
     public Cuenta(TipoCartera tipo, boolean cuentaPerdida, long numeroTienda, long numeroFactura, String articulo,

@@ -68,9 +68,11 @@ public final class CalculadoraEstadoCuenta {
     /** @sVarTipoUltimoMov de cada spPc2GeCar*VdoCalEdoCta: tipos de movimiento que son abono. */
     private static final Map<TipoCartera, Set<String>> TIPOS_ABONO = Map.of(
             TipoCartera.MUEBLES, Set.of("1"),
-            TipoCartera.DEUDA_BANCOPPEL, Set.of("1"),
+            // J: abono de cobranza (spcActDeudaBancoppelCobranzaAbonos); una muestra imprime su fecha
+            TipoCartera.DEUDA_BANCOPPEL, Set.of("1", "J"),
             TipoCartera.REESTRUCTURA, Set.of("F"),
-            TipoCartera.ROPA, Set.of("5"),
+            // 3: venta con enganche (spcVentasRopa03CreditoRopa); una muestra imprime su fecha, la 4 (sin enganche) no
+            TipoCartera.ROPA, Set.of("5", "3"),
             TipoCartera.TIEMPO_AIRE, Set.of("5"),
             TipoCartera.PRESTAMOS, Set.of("B", "C"));
     /** Caracteres por lugar de interés [20]: el impresor separa las claves 40 puntos ("IM$99,999" cabe). */
@@ -105,6 +107,7 @@ public final class CalculadoraEstadoCuenta {
         LocalDate siguienteCorte = corte.plusMonths(1);
         Cliente cliente = exp.cliente();
         List<String> alertas = new ArrayList<>();
+        boolean datosPosteriores = exp.fechaDatos() != null && exp.fechaDatos().isAfter(corte);
 
         List<Renglon> renglones = new ArrayList<>();
         for (Cuenta c : ordenar(exp.cuentas())) {
@@ -119,7 +122,16 @@ public final class CalculadoraEstadoCuenta {
             }
             // La emisión solo toma cuentas con SaldoALaFecha > 0
             if ((c.cuentaPerdida() ? saldoCuentaPerdida(c) : c.saldoFecha()) > 0) {
-                renglones.add(renglon(c, corte, siguienteCorte, saldaConDelSiguienteCorte(exp, siguienteCorte)));
+                long abonosMes = c.abonosMes();
+                if (datosPosteriores && !c.cuentaPerdida() && abonosMes == 0 && abonoDelPeriodo(c, corte)) {
+                    abonosMes = c.importeUltimoMovimiento();
+                    alertas.add("Cuenta " + c.articulo().strip() + ": los datos son posteriores al corte y AbonoDelMes ya "
+                            + "está en 0; se toma el último abono ($" + Formato.importeConCero(abonosMes) + " del "
+                            + Formato.fechaCorta(c.fechaUltimoMovimiento()) + "). Si hubo más abonos en el mes, el "
+                            + "impreso trae la suma");
+                }
+                renglones.add(renglon(c, corte, siguienteCorte, saldaConDelSiguienteCorte(exp, siguienteCorte),
+                        abonosMes));
             }
         }
 
@@ -191,7 +203,6 @@ public final class CalculadoraEstadoCuenta {
         }
 
         // Marca de contacto: el impresor solo la pinta si el cliente debe y tiene atrasado
-        boolean datosPosteriores = exp.fechaDatos() != null && exp.fechaDatos().isAfter(corte);
         String marca = marcaContacto(exp.marcasContacto());
         String explicacionMarca = "";
         if (datosPosteriores && exp.contactoAlCorte() != null) {
@@ -579,7 +590,19 @@ public final class CalculadoraEstadoCuenta {
      * El interés moratorio de la emisión ya no existe en las carteras (no hay TasaInteres): su lugar lo ocupa el interés
      * adicional cargado en el mes, que es también lo que se imprime en "Interés adicional".
      */
-    private Renglon renglon(Cuenta c, LocalDate corte, LocalDate siguienteCorte, boolean saldaCon20) {
+    /**
+     * El último movimiento es un abono de la cartera hecho en el periodo del corte (del día siguiente al corte anterior
+     * al día del corte). Sirve para recuperar "Menos abonos" cuando el cierre ya reinició AbonoDelMes.
+     */
+    static boolean abonoDelPeriodo(Cuenta c, LocalDate corte) {
+        LocalDate fecha = c.fechaUltimoMovimiento();
+        String tipo = c.tipoUltimoMovimiento() == null ? "" : c.tipoUltimoMovimiento().strip();
+        return fecha != null && fecha.isAfter(corte.minusMonths(1)) && !fecha.isAfter(corte)
+                && TIPOS_ABONO.getOrDefault(c.tipo(), Set.of()).contains(tipo);
+    }
+
+    /** @param abonosMes AbonoDelMes, o el último abono si el cierre ya lo reinició (ver {@link #abonoDelPeriodo}) */
+    private Renglon renglon(Cuenta c, LocalDate corte, LocalDate siguienteCorte, boolean saldaCon20, long abonosMes) {
         if (c.cuentaPerdida()) {
             return renglonCuentaPerdida(c);
         }
@@ -597,7 +620,7 @@ public final class CalculadoraEstadoCuenta {
             default -> FuncionesEmision.comprasDelMes(c.fechaCompra(), corte, c.importeVenta() + c.interesSobreCompra());
         };
         // [4] MENOS ABONOS: ropa y tiempo aire suman enganches y bonificación otorgada (AbonosDelMesEmision)
-        long abonos = revolvente ? c.abonosMes() + c.enganchesMes() + c.bonificacionOtorgada() : c.abonosMes();
+        long abonos = revolvente ? abonosMes + c.enganchesMes() + c.bonificacionOtorgada() : abonosMes;
 
         // [3] USTED DEBÍA
         long debia = switch (c.tipo()) {
@@ -709,7 +732,9 @@ public final class CalculadoraEstadoCuenta {
                     "Plazo " + c.plazo() + " no está en el catálogo de " + c.tipo().nombre()
                             + ": se toma " + columna + " del listado");
         }
-        long bruto = Math.round(c.interesSobreCompra() * factor.getAsDouble());
+        // proc_gecalculabonificacionprestamos trunca (CAST(interés × porcentaje AS INT)); ropa y muebles redondean
+        double exacto = c.interesSobreCompra() * factor.getAsDouble();
+        long bruto = c.tipo() == TipoCartera.PRESTAMOS ? (long) exacto : Math.round(exacto);
         return new Bonificacion(c.interesSobreCompra(), dias, c.plazo(), factor.getAsDouble(), topeSaldo(bruto, c),
                 notaTope(bruto, c).replaceFirst("^\\. ", ""));
     }
