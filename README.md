@@ -132,6 +132,11 @@ target\installer\ValidadorEdoCta\
 └── runtime\                 ← Java embebido
 ```
 
+Para compartirla se comprime la carpeta completa (`app\` y `runtime\` son necesarias: el `.exe` solo es el
+lanzador), sin `logs\`. El `runtime\` lleva solo los módulos de Java que usa la aplicación (`MODULOS` en
+`build.bat`, ~60 MB en lugar de ~170 MB). Si al abrir aparece `NoClassDefFoundError` o `ClassNotFoundException` de
+una clase `java.*`/`javax.*`, falta agregar ese módulo a `MODULOS`.
+
 ### Probar sin generar el .exe
 
 ```bat
