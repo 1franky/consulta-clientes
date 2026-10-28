@@ -137,6 +137,25 @@ lanzador), sin `logs\`. El `runtime\` lleva solo los módulos de Java que usa la
 `build.bat`, ~60 MB en lugar de ~170 MB). Si al abrir aparece `NoClassDefFoundError` o `ClassNotFoundException` de
 una clase `java.*`/`javax.*`, falta agregar ese módulo a `MODULOS`.
 
+### Compilar y generar el .app (macOS)
+
+Desde la carpeta del proyecto: `sh build.sh` (usa el JDK 21 instalado; `sh build.sh --solo-jar` solo compila el jar).
+Solo para Macs con Apple Silicon (M1, M2, ...). Resultado, con Java embebido:
+
+```
+target/installer/ValidadorEdoCta/
+├── ValidadorEdoCta.app      ← lo que abre el usuario
+├── config.properties        ← modo y credenciales (editable)
+├── bonificaciones.csv       ← catálogo de respaldo si la base no tiene bonificaciones
+└── logo.png                 ← logo (opcional)
+```
+
+Para compartirla basta con mandar `target/installer/ValidadorEdoCta.zip` (la carpeta completa); quien la recibe lo
+descomprime y abre `ValidadorEdoCta.app`. Los logs quedan en `ValidadorEdoCta.app/Contents/MacOS/logs`.
+
+Va con firma local (sin cuenta de desarrollador de Apple): en otra Mac, la primera vez se abre con clic derecho → **Abrir**
+(o `xattr -dr com.apple.quarantine ValidadorEdoCta.app`).
+
 ### Probar sin generar el .exe
 
 ```bat

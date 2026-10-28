@@ -19,8 +19,9 @@ import java.util.stream.Collectors;
 /**
  * Lee config.properties desde FUERA del ejecutable. Orden de búsqueda:
  *  1. Ruta indicada con -Dconfig=C:\ruta\config.properties
- *  2. Carpeta donde está ValidadorEdoCta.exe
- *  3. Carpeta de trabajo actual (útil al ejecutar el jar en desarrollo)
+ *  2. En macOS, carpeta donde está ValidadorEdoCta.app (editable sin abrir el paquete)
+ *  3. Carpeta donde está ValidadorEdoCta.exe (en macOS, ValidadorEdoCta.app/Contents/MacOS)
+ *     o, en desarrollo, la carpeta de trabajo actual
  *
  * Las sentencias de los listados (sp.*) vienen en procedimientos.properties, dentro del jar;
  * config.properties puede redefinir cualquiera con la misma clave.
@@ -74,8 +75,26 @@ public final class Config {
         if (explicita != null && !explicita.isBlank()) {
             lista.add(Paths.get(explicita));
         }
+        Path junto = carpetaJuntoAlApp();
+        if (junto != null) {
+            lista.add(junto.resolve(NOMBRE_ARCHIVO));
+        }
         lista.add(carpetaAplicacion().resolve(NOMBRE_ARCHIVO));
         return lista;
+    }
+
+    /**
+     * En macOS el ejecutable vive en ValidadorEdoCta.app/Contents/MacOS: devuelve la carpeta que contiene
+     * el .app, para que un config.properties puesto junto a la app se edite sin abrir el paquete.
+     * null fuera de un .app.
+     */
+    private static Path carpetaJuntoAlApp() {
+        Path macos = carpetaAplicacion();
+        Path app = macos.getParent() == null ? null : macos.getParent().getParent();
+        if (app != null && app.getFileName() != null && app.getFileName().toString().endsWith(".app")) {
+            return app.getParent();
+        }
+        return null;
     }
 
     /** Carpeta del .exe (jpackage define jpackage.app-path) o, en desarrollo, la carpeta de trabajo. */
